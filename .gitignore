@@ -1,5 +1,3 @@
-# Created by https://www.toptal.com/developers/gitignore/api/node,visualstudiocode
-# Edit at https://www.toptal.com/developers/gitignore?templates=node,visualstudiocode
 
 ### Node ###
 # Logs
@@ -93,7 +91,7 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
+# dist commenting out to publish it via GitHub Pages
 
 # Gatsby files
 .cache/
