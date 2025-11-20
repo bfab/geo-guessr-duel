@@ -25,7 +25,7 @@ const UI_TEXT = {
   ita: { menu_title: "Scegli Modalità", mode_country: "Indovina il Paese", mode_capital: "Indovina la Capitale", reveal: "Rivela", next: "Prossimo", p1: "Giocatore 1", p2: "Giocatore 2", p1Correct: "G1 Corretto", p2Correct: "G2 Corretto", identify: "Identifica il Paese", answer: "Risposta", reset: "Fine Gioco", loading: "Caricamento...", error: "Errore di caricamento", tapHint: "Tocca per rivelare", guess_country: "Quale Paese è Evidenziato?", guess_capital: "Qual è la Capitale di", confirm_title: "Conferma Fine", confirm_msg: "Sei sicuro di voler terminare il gioco attuale e tornare al menu principale? I tuoi punteggi andranno persi.", confirm_yes: "Sì", confirm_no: "No" },
   por: { menu_title: "Escolha o Modo", mode_country: "Adivinhe o País", mode_capital: "Adivinhe a Capital", reveal: "Revelar", next: "Próximo", p1: "Jogador 1", p2: "Jogador 2", p1Correct: "J1 Correto", p2Correct: "J2 Correto", identify: "Identifique o País", answer: "Resposta", reset: "Terminar Jogo", loading: "Carregando Mapa...", error: "Erro ao carregar", tapHint: "Toque para revelar", guess_country: "Qual País Está Destacado?", guess_capital: "Qual é a Capital de", confirm_title: "Confirmar Fim", confirm_msg: "Tem certeza de que deseja terminar o jogo atual e voltar ao menu principal? Suas pontuações serão perdidas.", confirm_yes: "Sim", confirm_no: "Não" },
   rus: { menu_title: "Выберите режим", mode_country: "Угадай Страну", mode_capital: "Угадай Столицу", reveal: "Показать ответ", next: "След. Раунд", p1: "Игрок 1", p2: "Игрок 2", p1Correct: "И1 Верно", p2Correct: "И2 Верно", identify: "Угадайте страну", answer: "Ответ", reset: "Завершить", loading: "Загрузка карты...", error: "Ошибка загрузки", tapHint: "Нажми чтобы открыть", guess_country: "Какая страна выделена?", guess_capital: "Какая столица у", confirm_title: "Подтверждение", confirm_msg: "Вы уверены, что хотите завершить текущую игру и вернуться в главное меню? Ваши очки будут потеряны.", confirm_yes: "Да", confirm_no: "Нет" },
-  jpn: { menu_title: "ゲームモード選択", mode_country: "国当て", mode_capital: "首都当て", reveal: "答えを表示", next: "次のラウンド", p1: "プレイヤー1", p2: "プレイヤー2", p1Correct: "P1 正解", p2Correct: "P2 正解", identify: "ハイライトされた国は？", answer: "正解", reset: "ゲーム終了", loading: "読み込み中...", error: "読み込みエラー", tapHint: "タップして表示", guess_country: "ハイライトされた国はどこですか？", guess_capital: "の首都はどこですか？", confirm_title: "終了確認", confirm_msg: "現在のゲームを終了し、メインメニューに戻りますか？スコアは失われます。", confirm_yes: "はい、終了", confirm_no: "いいえ、続行" },
+  jpn: { menu_title: "ゲームモード選択", mode_country: "国当て", mode_capital: "首都当て", reveal: "答えを表示", next: "次のラウンド", p1: "プレイヤー1", p2: "プレイヤー 2", p1Correct: "P1 正解", p2Correct: "P2 正解", identify: "ハイライトされた国は？", answer: "正解", reset: "ゲーム終了", loading: "読み込み中...", error: "読み込みエラー", tapHint: "タップして表示", guess_country: "ハイライトされた国はどこですか？", guess_capital: "の首都はどこですか？", confirm_title: "終了確認", confirm_msg: "現在のゲームを終了し、メインメニューに戻りますか？スコアは失われます。", confirm_yes: "はい、終了", confirm_no: "いいえ、続行" },
   kor: { menu_title: "게임 모드 선택", mode_country: "국가 맞히기", mode_capital: "수도 맞히기", reveal: "정답 보기", next: "다음 라운드", p1: "플레이어 1", p2: "플레이어 2", p1Correct: "P1 정답", p2Correct: "P2 정답", identify: "국가를 맞혀보세요", answer: "정답", reset: "게임 종료", loading: "로딩 중...", error: "로딩 오류", tapHint: "탭하여 정답보기", guess_country: "강조된 국가는 무엇입니까?", guess_capital: "의 수도는 어디입니까?", confirm_title: "종료 확인", confirm_msg: "현재 게임을 종료하고 메인 메뉴로 돌아가시겠습니까? 점수는 초기화됩니다.", confirm_yes: "예, 종료", confirm_no: "아니요, 계속" },
   zho: { menu_title: "选择游戏模式", mode_country: "猜国家", mode_capital: "猜首都", reveal: "显示答案", next: "下一轮", p1: "玩家 1", p2: "玩家 2", p1Correct: "P1 正确", p2Correct: "P2 正确", identify: "识别突出显示的国家", answer: "答案", reset: "结束游戏", loading: "加载地图中...", error: "加载错误", tapHint: "点击显示", guess_country: "哪个国家被突出显示？", guess_capital: "的首都是什么", confirm_title: "结束确认", confirm_msg: "您确定要结束当前游戏并返回主菜单吗？您的分数将会丢失。", confirm_yes: "是，结束", confirm_no: "否，继续" },
 };
@@ -246,15 +246,10 @@ export default function GeoGuesserDuel() {
   const animateToCountry = useCallback((feature) => {
     if (!feature) return;
 
-    // For Capital Guess mode, we always want the default view (no zoom)
-    if (gameState === 'capital_guess') {
-      setTransform({ k: 1, x: 0, y: 0 });
-      return;
-    }
-    
+    // FIX: Removed conditional skip, now zoom/pan applies to both modes.
     const newTransform = calculateZoomAndPan(feature);
     setTransform(newTransform);
-  }, [gameState, calculateZoomAndPan]);
+  }, [calculateZoomAndPan]);
 
 
   // --- GAME LOGIC & TRANSLATIONS ---
@@ -308,7 +303,7 @@ export default function GeoGuesserDuel() {
       pickRandomCountry();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState, geoData]); // Dependencies changed: removed pickRandomCountry to avoid infinite loop due to its dependency on animateToCountry which depends on gameState. It's safe since pickRandomCountry is called once on gameState change.
+  }, [gameState, geoData]); 
 
 
   const toggleRoundWinner = (player) => {
@@ -383,7 +378,7 @@ export default function GeoGuesserDuel() {
 
   const handleResetView = (e) => {
     e.stopPropagation();
-    if (targetCountry && gameState === 'country_guess') {
+    if (targetCountry) {
       // Reset to the calculated auto-zoom view
       animateToCountry(targetCountry); 
     } else {
@@ -401,7 +396,7 @@ export default function GeoGuesserDuel() {
   };
 
   const onDragStart = (e) => {
-    if (transform.k <= 1 || gameState !== 'country_guess') return; 
+    if (transform.k <= 1) return; // Only allow panning if zoomed
     setIsDragging(true);
     isClickRef.current = true; // Assume it's a click until movement
     const { clientX, clientY } = getClientCoords(e);
@@ -528,6 +523,7 @@ export default function GeoGuesserDuel() {
   }
 
   // --- RENDER GAME (Country or Capital Guess) ---
+  // The map interaction remains disabled if guessing capital, but the view is zoomed in.
   const mapInteractionDisabled = gameState === 'capital_guess';
   const overlayText = gameState === 'country_guess' 
     ? getText('guess_country') 
@@ -624,7 +620,7 @@ export default function GeoGuesserDuel() {
           // TouchMove handles setting isClickRef.current = false
         >
           {/* ZOOM CONTROLS */}
-          <div className={`absolute top-4 left-4 z-30 flex flex-col gap-2 bg-slate-800/90 p-2 rounded-lg border border-slate-700 shadow-xl backdrop-blur-sm transition-opacity ${mapInteractionDisabled ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div className={`absolute top-4 left-4 z-30 flex flex-col gap-2 bg-slate-800/90 p-2 rounded-lg border border-slate-700 shadow-xl backdrop-blur-sm transition-opacity`}>
             <button onClick={handleZoomIn} disabled={transform.k >= MAX_ZOOM} className={`p-2 rounded text-slate-200 transition ${transform.k >= MAX_ZOOM ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-600'}`}><ZoomIn size={20} /></button>
             <button onClick={handleZoomOut} disabled={transform.k <= 1} className={`p-2 rounded text-slate-200 transition ${transform.k <= 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-600'}`}><ZoomOut size={20} /></button>
             {/* The Reset View button now returns to the calculated auto-zoom view */}
