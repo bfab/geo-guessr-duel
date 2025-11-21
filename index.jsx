@@ -165,7 +165,8 @@ export default function GeoGuesserDuel() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const geoRes = await fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson');
+        // copied from 'https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson'
+        const geoRes = await fetch('world.geojson');
         if (!geoRes.ok) throw new Error("Failed to load map shapes");
         const geoJson = await geoRes.json();
 
