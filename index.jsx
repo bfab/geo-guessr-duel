@@ -19,7 +19,6 @@ const UI_TEXT = {
     confirm_title: "Confirmar Fin del Juego", confirm_msg: "¿Estás seguro de que quieres terminar el juego actual y volver al menú principal? Las puntuaciones se perderán.",
     confirm_yes: "Sí, Terminar", confirm_no: "No, Seguir Jugando"
   },
-  // Simplified for brevity, assume similar translations for other languages
   fra: { menu_title: "Choisir Mode", mode_country: "Deviner le Pays", mode_capital: "Deviner la Capitale", reveal: "Révéler", next: "Suivant", p1: "Joueur 1", p2: "Joueur 2", p1Correct: "J1 Correct", p2Correct: "J2 Correct", identify: "Identifier le Pays", answer: "Réponse", reset: "Finir Jeu", loading: "Chargement...", error: "Erreur de chargement", tapHint: "Toucher pour révéler", guess_country: "Quel Pays est Surligné?", guess_capital: "Quelle est la Capitale de", confirm_title: "Confirmation", confirm_msg: "Êtes-vous sûr de vouloir terminer le jeu et revenir au menu principal ? Vos scores seront perdus.", confirm_yes: "Oui", confrim_no: "Non" },
   deu: { menu_title: "Spielmodus wählen", mode_country: "Land erraten", mode_capital: "Hauptstadt erraten", reveal: "Antwort zeigen", next: "Nächste Runde", p1: "Spieler 1", p2: "Spieler 2", p1Correct: "S1 Richtig", p2Correct: "S2 Richtig", identify: "Land identifizieren", answer: "Antwort", reset: "Spiel beenden", loading: "Karte wird geladen...", error: "Fehler beim Laden", tapHint: "Tippen zum Aufdecken", guess_country: "Welches Land ist markiert?", guess_capital: "Was ist die Hauptstadt von", confirm_title: "Spiel beenden", confirm_msg: "Möchten Sie das aktuelle Spiel wirklich beenden und zum Hauptmenü zurückkehren? Ihre Punktzahlen gehen verloren.", confirm_yes: "Ja", confirm_no: "Nein" },
   ita: { menu_title: "Scegli Modalità", mode_country: "Indovina il Paese", mode_capital: "Indovina la Capitale", reveal: "Rivela", next: "Prossimo", p1: "Giocatore 1", p2: "Giocatore 2", p1Correct: "G1 Corretto", p2Correct: "G2 Corretto", identify: "Identifica il Paese", answer: "Risposta", reset: "Fine Gioco", loading: "Caricamento...", error: "Errore di caricamento", tapHint: "Tocca per rivelare", guess_country: "Quale Paese è Evidenziato?", guess_capital: "Qual è la Capitale di", confirm_title: "Conferma Fine", confirm_msg: "Sei sicuro di voler terminare il gioco attuale e tornare al menu principale? I tuoi punteggi andranno persi.", confirm_yes: "Sì", confirm_no: "No" },
@@ -63,7 +62,7 @@ const VIEWPORT_CENTER_Y = PROJECT_HEIGHT / 2;
 const MAX_ZOOM = 8;
 const ZOOM_INCREMENT = 1.5;
 
-// New constant for the desired country size on auto-zoom
+// Constant for the desired country size on auto-zoom
 const TARGET_FILL_PERCENTAGE = 0.25; 
 
 const getMercatorCoords = (lon, lat) => {
@@ -215,28 +214,22 @@ export default function GeoGuesserDuel() {
     const width = bounds.maxX - bounds.minX;
     const height = bounds.maxY - bounds.minY;
 
-    // --- START New Zoom Calculation for 25% Linear Occupancy (User Request) ---
-    
     // Calculate zoom required for the country's width to fill TARGET_FILL_PERCENTAGE (25%) of the map width
     const zoomX = (PROJECT_WIDTH * TARGET_FILL_PERCENTAGE) / width;
     // Calculate zoom required for the country's height to fill TARGET_FILL_PERCENTAGE (25%) of the map height
     const zoomY = (PROJECT_HEIGHT * TARGET_FILL_PERCENTAGE) / height;
 
     // Choose the smaller zoom factor to ensure the whole country fits within the 25% target window.
-    // E.g., if width is very large (long country), we need less zoom (smaller k).
     let k = Math.min(zoomX, zoomY);
     
     // Clamp zoom level: Min 1x (no zoom out past world view), Max MAX_ZOOM (8x)
     k = Math.max(1, Math.min(MAX_ZOOM, k));
     
-    // --- END New Zoom Calculation ---
-
     // Calculate the center point of the country in Mercator coordinates
     const centerX = (bounds.minX + bounds.maxX) / 2;
     const centerY = (bounds.minY + bounds.maxY) / 2;
     
     // Calculate the required translation (pan) to center the country
-    // The viewport center (400, 250) must align with the zoomed country center
     const newX = VIEWPORT_CENTER_X - centerX * k;
     const newY = VIEWPORT_CENTER_Y - centerY * k;
 
@@ -246,8 +239,7 @@ export default function GeoGuesserDuel() {
   // Use the calculated transformation to smoothly transition the map view
   const animateToCountry = useCallback((feature) => {
     if (!feature) return;
-
-    // FIX: Removed conditional skip, now zoom/pan applies to both modes.
+    // Applies zoom and pan for ANY game mode
     const newTransform = calculateZoomAndPan(feature);
     setTransform(newTransform);
   }, [calculateZoomAndPan]);
@@ -293,7 +285,7 @@ export default function GeoGuesserDuel() {
     setRevealed(false);
     setRoundWinners({ p1: false, p2: false });
     
-    // Auto-zoom and pan on the new country
+    // Auto-zoom and pan on the new country for BOTH modes
     animateToCountry(newTarget);
 
   }, [geoData, gameState, translationData, animateToCountry]); 
@@ -524,7 +516,9 @@ export default function GeoGuesserDuel() {
   }
 
   // --- RENDER GAME (Country or Capital Guess) ---
+  // Unified interaction: Allow map manipulation in both modes
   const mapInteractionDisabled = false;
+  
   const overlayText = gameState === 'country_guess' 
     ? getText('guess_country') 
     : `${getText('guess_capital')} ${getCountryName(targetCountry)}?`;
