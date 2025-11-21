@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Trophy, Map as MapIcon, RefreshCw, Eye, Globe, User, ArrowRight, Check, ZoomIn, ZoomOut, Maximize, Landmark, MousePointer2 } from 'lucide-react';
+import { Trophy, Map as MapIcon, RefreshCw, Eye, Globe, User, ArrowRight, Check, ZoomIn, ZoomOut, Maximize, Landmark, MousePointer2, Frown, PartyPopper } from 'lucide-react';
 
 // --- TRANSLATION DICTIONARY ---
 const UI_TEXT = {
@@ -9,7 +9,9 @@ const UI_TEXT = {
     identify: "Identify Highlighted Country", answer: "Answer", reset: "End Game", loading: "Loading Map Data...", error: "Unable to load map data.", 
     tapHint: "Tap map to reveal", guess_country: "Which Country is Highlighted?", guess_capital: "What is the Capital of",
     confirm_title: "End Game Confirmation", confirm_msg: "Are you sure you want to end the current game and return to the main menu? Your scores will be lost.",
-    confirm_yes: "Yes, End Game", confirm_no: "No, Keep Playing"
+    confirm_yes: "Yes, End Game", confirm_no: "No, Keep Playing",
+    game_over_title: "Game Over! Results", game_over_winner: "The Winner is", game_over_tie: "It's a Tie!", game_over_play_again: "Play Again",
+    rounds_remaining: (count) => `${count} Rounds Left`, rounds_complete: "All Countries Played!",
   },
   spa: { 
     menu_title: "Elige Modo de Juego", mode_country: "Adivina el País", mode_capital: "Adivina la Capital", 
@@ -17,16 +19,42 @@ const UI_TEXT = {
     identify: "Identifica el País", answer: "Respuesta", reset: "Terminar Juego", loading: "Cargando Mapa...", error: "Error al cargar mapa.", 
     tapHint: "Toca para revelar", guess_country: "¿Qué País Está Resaltado?", guess_capital: "¿Cuál es la Capital de",
     confirm_title: "Confirmar Fin del Juego", confirm_msg: "¿Estás seguro de que quieres terminar el juego actual y volver al menú principal? Las puntuaciones se perderán.",
-    confirm_yes: "Sí, Terminar", confirm_no: "No, Seguir Jugando"
+    confirm_yes: "Sí, Terminar", confirm_no: "No, Seguir Jugando",
+    game_over_title: "¡Juego Terminado! Resultados", game_over_winner: "El Ganador es", game_over_tie: "¡Empate!", game_over_play_again: "Jugar de Nuevo",
+    rounds_remaining: (count) => `${count} Rondas Restantes`, rounds_complete: "¡Todos los Países Jugados!",
   },
-  fra: { menu_title: "Choisir Mode", mode_country: "Deviner le Pays", mode_capital: "Deviner la Capitale", reveal: "Révéler", next: "Suivant", p1: "Joueur 1", p2: "Joueur 2", p1Correct: "J1 Correct", p2Correct: "J2 Correct", identify: "Identifier le Pays", answer: "Réponse", reset: "Finir Jeu", loading: "Chargement...", error: "Erreur de chargement", tapHint: "Toucher pour révéler", guess_country: "Quel Pays est Surligné?", guess_capital: "Quelle est la Capitale de", confirm_title: "Confirmation", confirm_msg: "Êtes-vous sûr de vouloir terminer le jeu et revenir au menu principal ? Vos scores seront perdus.", confirm_yes: "Oui", confrim_no: "Non" },
-  deu: { menu_title: "Spielmodus wählen", mode_country: "Land erraten", mode_capital: "Hauptstadt erraten", reveal: "Antwort zeigen", next: "Nächste Runde", p1: "Spieler 1", p2: "Spieler 2", p1Correct: "S1 Richtig", p2Correct: "S2 Richtig", identify: "Land identifizieren", answer: "Antwort", reset: "Spiel beenden", loading: "Karte wird geladen...", error: "Fehler beim Laden", tapHint: "Tippen zum Aufdecken", guess_country: "Welches Land ist markiert?", guess_capital: "Was ist die Hauptstadt von", confirm_title: "Spiel beenden", confirm_msg: "Möchten Sie das aktuelle Spiel wirklich beenden und zum Hauptmenü zurückkehren? Ihre Punktzahlen gehen verloren.", confirm_yes: "Ja", confirm_no: "Nein" },
-  ita: { menu_title: "Scegli Modalità", mode_country: "Indovina il Paese", mode_capital: "Indovina la Capitale", reveal: "Rivela", next: "Prossimo", p1: "Giocatore 1", p2: "Giocatore 2", p1Correct: "G1 Corretto", p2Correct: "G2 Corretto", identify: "Identifica il Paese", answer: "Risposta", reset: "Fine Gioco", loading: "Caricamento...", error: "Errore di caricamento", tapHint: "Tocca per rivelare", guess_country: "Quale Paese è Evidenziato?", guess_capital: "Qual è la Capitale di", confirm_title: "Conferma Fine", confirm_msg: "Sei sicuro di voler terminare il gioco attuale e tornare al menu principale? I tuoi punteggi andranno persi.", confirm_yes: "Sì", confirm_no: "No" },
-  por: { menu_title: "Escolha o Modo", mode_country: "Adivinhe o País", mode_capital: "Adivinhe a Capital", reveal: "Revelar", next: "Próximo", p1: "Jogador 1", p2: "Jogador 2", p1Correct: "J1 Correto", p2Correct: "J2 Correto", identify: "Identifique o País", answer: "Resposta", reset: "Terminar Jogo", loading: "Carregando Mapa...", error: "Erro ao carregar", tapHint: "Toque para revelar", guess_country: "Qual País Está Destacado?", guess_capital: "Qual é a Capital de", confirm_title: "Confirmar Fim", confirm_msg: "Tem certeza de que deseja terminar o jogo atual e voltar ao menu principal? Suas pontuações serão perdidas.", confirm_yes: "Sim", confirm_no: "Não" },
-  rus: { menu_title: "Выберите режим", mode_country: "Угадай Страну", mode_capital: "Угадай Столицу", reveal: "Показать ответ", next: "След. Раунд", p1: "Игрок 1", p2: "Игрок 2", p1Correct: "И1 Верно", p2Correct: "И2 Верно", identify: "Угадайте страну", answer: "Ответ", reset: "Завершить", loading: "Загрузка карты...", error: "Ошибка загрузки", tapHint: "Нажми чтобы открыть", guess_country: "Какая страна выделена?", guess_capital: "Какая столица у", confirm_title: "Подтверждение", confirm_msg: "Вы уверены, что хотите завершить текущую игру и вернуться в главное меню? Ваши очки будут потеряны.", confirm_yes: "Да", confirm_no: "Нет" },
-  jpn: { menu_title: "ゲームモード選択", mode_country: "国当て", mode_capital: "首都当て", reveal: "答えを表示", next: "次のラウンド", p1: "プレイヤー1", p2: "プレイヤー 2", p1Correct: "P1 正解", p2Correct: "P2 正解", identify: "ハイライトされた国は？", answer: "正解", reset: "ゲーム終了", loading: "読み込み中...", error: "読み込みエラー", tapHint: "タップして表示", guess_country: "ハイライトされた国はどこですか？", guess_capital: "の首都はどこですか？", confirm_title: "終了確認", confirm_msg: "現在のゲームを終了し、メインメニューに戻りますか？スコアは失われます。", confirm_yes: "はい、終了", confirm_no: "いいえ、続行" },
-  kor: { menu_title: "게임 모드 선택", mode_country: "국가 맞히기", mode_capital: "수도 맞히기", reveal: "정답 보기", next: "다음 라운드", p1: "플레이어 1", p2: "플레이어 2", p1Correct: "P1 정답", p2Correct: "P2 정답", identify: "국가를 맞혀보세요", answer: "정답", reset: "게임 종료", loading: "로딩 중...", error: "로딩 오류", tapHint: "탭하여 정답보기", guess_country: "강조된 국가는 무엇입니까?", guess_capital: "의 수도는 어디입니까?", confirm_title: "종료 확인", confirm_msg: "현재 게임을 종료하고 메인 메뉴로 돌아가시겠습니까? 점수는 초기화됩니다.", confirm_yes: "예, 종료", confirm_no: "아니요, 계속" },
-  zho: { menu_title: "选择游戏模式", mode_country: "猜国家", mode_capital: "猜首都", reveal: "显示答案", next: "下一轮", p1: "玩家 1", p2: "玩家 2", p1Correct: "P1 正确", p2Correct: "P2 正确", identify: "识别突出显示的国家", answer: "答案", reset: "结束游戏", loading: "加载地图中...", error: "加载错误", tapHint: "点击显示", guess_country: "哪个国家被突出显示？", guess_capital: "的首都是什么", confirm_title: "结束确认", confirm_msg: "您确定要结束当前游戏并返回主菜单吗？您的分数将会丢失。", confirm_yes: "是，结束", confirm_no: "否，继续" },
+  fra: { menu_title: "Choisir Mode", mode_country: "Deviner le Pays", mode_capital: "Deviner la Capitale", reveal: "Révéler", next: "Suivant", p1: "Joueur 1", p2: "Joueur 2", p1Correct: "J1 Correct", p2Correct: "J2 Correct", identify: "Identifier le Pays", answer: "Réponse", reset: "Finir Jeu", loading: "Chargement...", error: "Erreur de chargement", tapHint: "Toucher pour révéler", guess_country: "Quel Pays est Surligné?", guess_capital: "Quelle est la Capitale de", confirm_title: "Confirmation", confirm_msg: "Êtes-vous sûr de vouloir terminer le jeu et revenir au menu principal ? Vos scores seront perdus.", confirm_yes: "Oui", confirm_no: "Non",
+    game_over_title: "Jeu Terminé! Résultats", game_over_winner: "Le Vainqueur est", game_over_tie: "Égalité !", game_over_play_again: "Rejouer",
+    rounds_remaining: (count) => `${count} Tours Restants`, rounds_complete: "Tous les Pays Joués!",
+  },
+  deu: { menu_title: "Spielmodus wählen", mode_country: "Land erraten", mode_capital: "Hauptstadt erraten", reveal: "Antwort zeigen", next: "Nächste Runde", p1: "Spieler 1", p2: "Spieler 2", p1Correct: "S1 Richtig", p2Correct: "S2 Richtig", identify: "Land identifizieren", answer: "Antwort", reset: "Spiel beenden", loading: "Karte wird geladen...", error: "Fehler beim Laden", tapHint: "Tippen zum Aufdecken", guess_country: "Welches Land ist markiert?", guess_capital: "Was ist die Hauptstadt von", confirm_title: "Spiel beenden", confirm_msg: "Möchten Sie das aktuelle Spiel wirklich beenden und zum Hauptmenü zurückkehren? Ihre Punktzahlen gehen verloren.", confirm_yes: "Ja", confirm_no: "Nein",
+    game_over_title: "Spiel Vorbei! Ergebnisse", game_over_winner: "Der Gewinner ist", game_over_tie: "Unentschieden!", game_over_play_again: "Nochmal Spielen",
+    rounds_remaining: (count) => `${count} Runden übrig`, rounds_complete: "Alle Länder gespielt!",
+  },
+  ita: { menu_title: "Scegli Modalità", mode_country: "Indovina il Paese", mode_capital: "Indovina la Capitale", reveal: "Rivela", next: "Prossimo", p1: "Giocatore 1", p2: "Giocatore 2", p1Correct: "G1 Corretto", p2Correct: "G2 Corretto", identify: "Identifica il Paese", answer: "Risposta", reset: "Fine Gioco", loading: "Caricamento...", error: "Errore di caricamento", tapHint: "Tocca per rivelare", guess_country: "Quale Paese è Evidenziato?", guess_capital: "Qual è la Capitale di", confirm_title: "Conferma Fine", confirm_msg: "Sei sicuro di voler terminare il gioco attuale e tornare al menu principale? I tuoi punteggi andranno persi.", confirm_yes: "Sì", confirm_no: "No",
+    game_over_title: "Gioco Finito! Risultati", game_over_winner: "Il Vincitore è", game_over_tie: "È un Pareggio!", game_over_play_again: "Gioca Ancora",
+    rounds_remaining: (count) => `${count} Round Rimanenti`, rounds_complete: "Tutti i Paesi Giocati!",
+  },
+  por: { menu_title: "Escolha o Modo", mode_country: "Adivinhe o País", mode_capital: "Adivinhe a Capital", reveal: "Revelar", next: "Próximo", p1: "Jogador 1", p2: "Jogador 2", p1Correct: "J1 Correto", p2Correct: "J2 Correto", identify: "Identifique o País", answer: "Resposta", reset: "Terminar Jogo", loading: "Carregando Mapa...", error: "Erro ao carregar", tapHint: "Toque para revelar", guess_country: "Qual País Está Destacado?", guess_capital: "Qual é a Capital de", confirm_title: "Confirmar Fim", confirm_msg: "Tem certeza de que deseja terminar o jogo atual e voltar ao menu principal? Suas pontuações serão perdidas.", confirm_yes: "Sim", confirm_no: "Não",
+    game_over_title: "Fim do Jogo! Resultados", game_over_winner: "O Vencedor é", game_over_tie: "É um Empate!", game_over_play_again: "Jogar Novamente",
+    rounds_remaining: (count) => `${count} Rodadas Restantes`, rounds_complete: "Todos os Países Jogados!",
+  },
+  rus: { menu_title: "Выберите режим", mode_country: "Угадай Страну", mode_capital: "Угадай Столицу", reveal: "Показать ответ", next: "След. Раунд", p1: "Игрок 1", p2: "Игрок 2", p1Correct: "И1 Верно", p2Correct: "И2 Верно", identify: "Угадайте страну", answer: "Ответ", reset: "Завершить", loading: "Загрузка карты...", error: "Ошибка загрузки", tapHint: "Нажми чтобы открыть", guess_country: "Какая страна выделена?", guess_capital: "Какая столица у", confirm_title: "Подтверждение", confirm_msg: "Вы уверены, что хотите завершить текущую игру и вернуться в главное меню? Ваши очки будут потеряны.", confirm_yes: "Да", confirm_no: "Нет",
+    game_over_title: "Игра Окончена! Результаты", game_over_winner: "Победитель", game_over_tie: "Ничья!", game_over_play_again: "Сыграть Снова",
+    rounds_remaining: (count) => `${count} Раундов осталось`, rounds_complete: "Все страны сыграны!",
+  },
+  jpn: { menu_title: "ゲームモード選択", mode_country: "国当て", mode_capital: "首都当て", reveal: "答えを表示", next: "次のラウンド", p1: "プレイヤー1", p2: "プレイヤー 2", p1Correct: "P1 正解", p2Correct: "P2 正解", identify: "ハイライトされた国は？", answer: "正解", reset: "ゲーム終了", loading: "読み込み中...", error: "読み込みエラー", tapHint: "タップして表示", guess_country: "ハイライトされた国はどこですか？", guess_capital: "の首都はどこですか？", confirm_title: "終了確認", confirm_msg: "現在のゲームを終了し、メインメニューに戻りますか？スコアは失われます。", confirm_yes: "はい、終了", confirm_no: "いいえ、続行",
+    game_over_title: "ゲーム終了！結果", game_over_winner: "勝者は", game_over_tie: "引き分けです！", game_over_play_again: "もう一度プレイ",
+    rounds_remaining: (count) => `残り${count}ラウンド`, rounds_complete: "全ての国をプレイしました！",
+  },
+  kor: { menu_title: "게임 모드 선택", mode_country: "국가 맞히기", mode_capital: "수도 맞히기", reveal: "정답 보기", next: "다음 라운드", p1: "플레이어 1", p2: "플레이어 2", p1Correct: "P1 정답", p2Correct: "P2 정답", identify: "국가를 맞혀보세요", answer: "정답", reset: "게임 종료", loading: "로딩 중...", error: "로딩 오류", tapHint: "탭하여 정답보기", guess_country: "강조된 국가는 무엇입니까?", guess_capital: "의 수도는 어디입니까?", confirm_title: "종료 확인", confirm_msg: "현재 게임을 종료하고 메인 메뉴로 돌아가시겠습니까? 점수는 초기화됩니다.", confirm_yes: "예, 종료", confirm_no: "아니요, 계속",
+    game_over_title: "게임 오버! 결과", game_over_winner: "승자는", game_over_tie: "무승부입니다!", game_over_play_again: "다시 플레이",
+    rounds_remaining: (count) => `남은 라운드: ${count}`, rounds_complete: "모든 국가 완료!",
+  },
+  zho: { menu_title: "选择游戏模式", mode_country: "猜国家", mode_capital: "猜首都", reveal: "显示答案", next: "下一轮", p1: "玩家 1", p2: "玩家 2", p1Correct: "P1 正确", p2Correct: "P2 正确", identify: "识别突出显示的国家", answer: "答案", reset: "结束游戏", loading: "加载地图中...", error: "加载错误", tapHint: "点击显示", guess_country: "哪个国家被突出显示？", guess_capital: "的首都是什么", confirm_title: "结束确认", confirm_msg: "您确定要结束当前游戏并返回主菜单吗？您的分数将会丢失。", confirm_yes: "是，结束", confirm_no: "否，继续",
+    game_over_title: "游戏结束! 结果", game_over_winner: "获胜者是", game_over_tie: "平局！", game_over_play_again: "再玩一次",
+    rounds_remaining: (count) => `剩余 ${count} 轮`, rounds_complete: "所有国家已玩完!",
+  },
 };
 
 const LANGUAGES = [
@@ -147,7 +175,10 @@ export default function GeoGuesserDuel() {
   const [roundWinners, setRoundWinners] = useState({ p1: false, p2: false });
   const [currentLang, setCurrentLang] = useState(getInitialLanguage);
   
-  // Game flow state ('menu' | 'country_guess' | 'capital_guess')
+  // New state for sampling without replacement
+  const [availableCountries, setAvailableCountries] = useState([]);
+
+  // Game flow state ('menu' | 'country_guess' | 'capital_guess' | 'game_over')
   const [gameState, setGameState] = useState('menu'); 
   // Confirmation modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -184,15 +215,7 @@ export default function GeoGuesserDuel() {
         }
 
         const validCountries = geoJson.features
-            .filter(f => f.id !== 'ATA' && f.id !== '-99') // Remove Antarctica and unknown territories
-            .filter(f => {
-                // For capital mode, we need countries with known capitals
-                if (transMap[f.id] && transMap[f.id].capital && transMap[f.id].capital.length > 0) {
-                    return true;
-                }
-                // Country guess mode only needs GEO data
-                return true; 
-            });
+            .filter(f => f.id !== 'ATA' && f.id !== '-99'); // Remove Antarctica and unknown territories
             
         setGeoData(validCountries);
         setLoading(false);
@@ -248,7 +271,13 @@ export default function GeoGuesserDuel() {
 
   // --- GAME LOGIC & TRANSLATIONS ---
 
-  const getText = useCallback((key) => UI_TEXT[currentLang][key] || UI_TEXT['eng'][key], [currentLang]);
+  const getText = useCallback((key, ...args) => {
+    const text = UI_TEXT[currentLang][key] || UI_TEXT['eng'][key];
+    if (typeof text === 'function') {
+      return text(...args);
+    }
+    return text;
+  }, [currentLang]);
 
   const getCountryName = (feature) => {
     if (!feature) return "Unknown";
@@ -269,18 +298,19 @@ export default function GeoGuesserDuel() {
     return tData?.capital?.[0] || "Unknown Capital";
   }
 
-  const pickRandomCountry = useCallback(() => {
-    const list = geoData.filter(f => {
-      // If capital mode, only pick countries with known capitals
-      if (gameState === 'capital_guess') {
-        return getCapitalName(f) !== "Unknown Capital";
-      }
-      return true;
-    });
+  // --- Core Game Flow Logic ---
 
-    if (!list || list.length === 0) return;
-    const randomIndex = Math.floor(Math.random() * list.length);
-    const newTarget = list[randomIndex];
+  const pickRandomCountry = useCallback(() => {
+    if (availableCountries.length === 0) {
+      setGameState('game_over'); // All countries played!
+      return;
+    }
+
+    const randomIndex = Math.floor(Math.random() * availableCountries.length);
+    const newTarget = availableCountries[randomIndex];
+
+    // Remove the selected country from the available list
+    setAvailableCountries(prev => prev.filter((_, index) => index !== randomIndex));
 
     setTargetCountry(newTarget);
     setRevealed(false);
@@ -289,15 +319,43 @@ export default function GeoGuesserDuel() {
     // Auto-zoom and pan on the new country for BOTH modes
     animateToCountry(newTarget);
 
-  }, [geoData, gameState, translationData, animateToCountry]); 
+  }, [availableCountries, animateToCountry]); 
 
-  // Trigger pickRandomCountry when game state or data changes
+  // Function to initialize the list of countries for a new game
+  const initializeGameCountries = useCallback((mode) => {
+    const list = geoData.filter(f => {
+      // If capital mode, only pick countries with known capitals
+      if (mode === 'capital_guess') {
+        return getCapitalName(f) !== "Unknown Capital";
+      }
+      return true; // Country guess mode uses all available countries
+    });
+    setAvailableCountries(list);
+  }, [geoData]);
+
+
+  // Effect to handle the start of a new game or game over
   useEffect(() => {
-    if (gameState !== 'menu' && geoData.length > 0) {
-      pickRandomCountry();
+    if (gameState === 'country_guess' || gameState === 'capital_guess') {
+      if (geoData.length > 0 && availableCountries.length === 0) {
+        // This runs only on the initial start of a game mode
+        initializeGameCountries(gameState);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState, geoData]); 
+
+  // Effect to start the first round once available countries are set
+  useEffect(() => {
+    if ((gameState === 'country_guess' || gameState === 'capital_guess') && 
+        geoData.length > 0 && 
+        availableCountries.length > 0 && 
+        !targetCountry
+    ) {
+        pickRandomCountry();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableCountries, gameState]); 
 
 
   const toggleRoundWinner = (player) => {
@@ -308,10 +366,13 @@ export default function GeoGuesserDuel() {
   };
 
   const handleNextRound = () => {
+    // 1. Update scores based on the current round winners
     setScores(prev => ({
       p1: prev.p1 + (roundWinners.p1 ? 1 : 0),
       p2: prev.p2 + (roundWinners.p2 ? 1 : 0)
     }));
+    
+    // 2. Start the next round (which checks for game over)
     pickRandomCountry();
   };
 
@@ -319,7 +380,10 @@ export default function GeoGuesserDuel() {
   const startGame = (mode) => {
     setScores({ p1: 0, p2: 0 });
     setGameState(mode);
-    // pickRandomCountry is called via useEffect on gameState change
+    setTargetCountry(null); // Reset target
+    initializeGameCountries(mode); // Initialize the list for sampling
+    setTransform({ k: 1, x: 0, y: 0 });
+    // The next round is started by the useEffect listening to availableCountries
   };
   
   // Reset to menu
@@ -327,6 +391,7 @@ export default function GeoGuesserDuel() {
     setGameState('menu');
     setScores({ p1: 0, p2: 0 });
     setTargetCountry(null);
+    setAvailableCountries([]);
     setTransform({ k: 1, x: 0, y: 0 });
     setShowConfirmModal(false);
   }
@@ -340,7 +405,6 @@ export default function GeoGuesserDuel() {
 
   // --- MANUAL ZOOM & PAN HANDLERS ---
   
-  // These handlers are kept simple, using a fixed increment/decrement factor
   const handleZoom = (factor, e) => {
     e.stopPropagation();
     setTransform(p => {
@@ -451,6 +515,54 @@ export default function GeoGuesserDuel() {
     </div>
   );
 
+  const GameOverModal = () => {
+    let winner = null;
+    let icon = <Frown size={40} className="text-yellow-400 mx-auto mb-4" />;
+    let message = getText('game_over_tie');
+    let winnerColor = "text-yellow-400";
+
+    if (scores.p1 > scores.p2) {
+      winner = "Player 1";
+      message = `${getText('game_over_winner')} ${getText('p1')}!`;
+      icon = <Trophy size={40} className="text-rose-500 mx-auto mb-4" />;
+      winnerColor = "text-rose-500";
+    } else if (scores.p2 > scores.p1) {
+      winner = "Player 2";
+      message = `${getText('game_over_winner')} ${getText('p2')}!`;
+      icon = <Trophy size={40} className="text-emerald-500 mx-auto mb-4" />;
+      winnerColor = "text-emerald-500";
+    }
+
+    return (
+      <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-opacity duration-300">
+        <div className="bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700 w-full max-w-lg text-center transform scale-100 animate-in fade-in zoom-in-50">
+          {icon}
+          <h3 className="text-2xl font-bold text-white mb-4">{getText('game_over_title')}</h3>
+          <p className={`text-3xl font-extrabold mb-8 ${winnerColor}`}>{message}</p>
+          
+          <div className="flex justify-center gap-8 mb-8">
+            <div className="flex flex-col items-center">
+              <div className="text-xl font-bold text-rose-400 mb-1">{getText('p1')}</div>
+              <div className="text-4xl font-mono font-extrabold text-white">{scores.p1}</div>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="text-xl font-bold text-emerald-400 mb-1">{getText('p2')}</div>
+              <div className="text-4xl font-mono font-extrabold text-white">{scores.p2}</div>
+            </div>
+          </div>
+          
+          <button 
+            onClick={resetToMenu}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition shadow-md shadow-blue-900/40 flex items-center justify-center gap-2"
+          >
+            <PartyPopper size={20} /> {getText('game_over_play_again')}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+
   const GameMenu = () => (
     <div className="flex flex-col items-center justify-center flex-1 p-8 text-center animate-in fade-in">
       <h2 className="text-5xl font-extrabold text-white mb-10 tracking-tight">{getText('menu_title')}</h2>
@@ -516,8 +628,33 @@ export default function GeoGuesserDuel() {
     );
   }
 
+  if (gameState === 'game_over') {
+    return (
+      <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans overflow-hidden">
+        <header className="bg-slate-800 border-b border-slate-700 px-4 py-3 shadow-md z-20">
+          <div className="max-w-7xl mx-auto flex justify-between items-center gap-4">
+            <div className="flex items-center gap-2">
+              <MapIcon className="text-blue-400" size={24} />
+              <h1 className="text-xl font-bold tracking-wider">GEO<span className="text-blue-400">DUEL</span></h1>
+            </div>
+            {/* Language selector remains */}
+            <select 
+              value={currentLang}
+              onChange={(e) => setCurrentLang(e.target.value)}
+              className="bg-slate-900 text-slate-300 text-sm border border-slate-600 rounded px-2 py-1 focus:outline-none focus:border-blue-500"
+            >
+              {LANGUAGES.map(lang => (
+                <option key={lang.code} value={lang.code}>{lang.label}</option>
+              ))}
+            </select>
+          </div>
+        </header>
+        <GameOverModal />
+      </div>
+    );
+  }
+
   // --- RENDER GAME (Country or Capital Guess) ---
-  // Unified interaction: Allow map manipulation in both modes
   const mapInteractionDisabled = false;
   
   const overlayText = gameState === 'country_guess' 
@@ -560,8 +697,18 @@ export default function GeoGuesserDuel() {
             </select>
           </div>
 
-          {/* Scoreboard */}
+          {/* Scoreboard and Rounds Remaining */}
           <div className="flex items-center gap-8 bg-slate-900/50 px-8 py-2 rounded-full border border-slate-700">
+             {/* Rounds Remaining Display */}
+             <div className="flex flex-col items-center">
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-400">
+                <MapIcon size={12} className="inline-block mr-1" />
+                {availableCountries.length > 0 ? getText('rounds_remaining', availableCountries.length) : (targetCountry ? 'Final Round!' : 'Preparing...')}
+              </span>
+            </div>
+            
+            <div className="h-8 w-px bg-slate-600 hidden sm:block"></div>
+
             <div className={`flex flex-col items-center transition-colors ${roundWinners.p1 && revealed ? 'text-rose-400' : ''}`}>
               <div className="flex items-center gap-2 text-xs text-rose-400 font-bold uppercase tracking-wider">
                 <User size={12} /> <span className="hidden sm:inline">{getText('p1')}</span><span className="sm:hidden">P1</span>
@@ -682,7 +829,7 @@ export default function GeoGuesserDuel() {
               ) : (
                  <div className="flex items-center gap-2 text-blue-300 font-semibold animate-pulse max-w-sm">
                    {gameState === 'country_guess' ? <Eye size={20} /> : <MousePointer2 size={20} />}
-                   {gameState === 'country_guess' ? getText('tapHint') : getCountryName(targetCountry)}
+                   {targetCountry ? (gameState === 'country_guess' ? getText('tapHint') : getCountryName(targetCountry)) : '...'}
                  </div>
               )}
             </div>
@@ -697,6 +844,7 @@ export default function GeoGuesserDuel() {
               <button 
                 onClick={() => setRevealed(true)}
                 className="w-full max-w-md bg-blue-600 hover:bg-blue-500 text-white text-xl font-bold py-4 px-8 rounded-xl shadow-lg shadow-blue-900/30 transition transform active:scale-95 flex items-center justify-center gap-3"
+                disabled={!targetCountry} // Disable if no country is loaded yet
               >
                 <Eye size={24} /> {getText('reveal')}
               </button>
@@ -740,7 +888,7 @@ export default function GeoGuesserDuel() {
                   onClick={handleNextRound}
                   className="w-full md:w-auto bg-slate-100 hover:bg-white text-slate-900 text-lg font-bold py-4 px-8 rounded-xl shadow-lg transition transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap"
                 >
-                  {getText('next')} <ArrowRight size={20} />
+                  {availableCountries.length === 0 ? getText('rounds_complete') : `${getText('next')} ${availableCountries.length > 0 ? `(${availableCountries.length})` : ''}`} <ArrowRight size={20} />
                 </button>
               </div>
             )}
