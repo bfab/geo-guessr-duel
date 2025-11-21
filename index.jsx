@@ -650,12 +650,11 @@ export default function GeoGuesserDuel() {
                     key={country.id}
                     d={country.path}
                     fill={isTarget ? '#3b82f6' : '#334155'}
-                    stroke={isTarget ? '#60a5fa' : '#1e293b'}
-                    // Scale stroke width inversely so lines stay thin when zoomed in
-                    strokeWidth={(isTarget ? 2 : 0.5) / transform.k}
+                    stroke={isTarget ? '#60a5fa' : '#475569'} 
+                    strokeWidth={isTarget ? 2.5 : 1.5}
                     className={`transition-colors duration-500 ease-in-out ${isTarget ? 'z-10' : 'z-0'}`}
                     style={{ 
-                      opacity: isTarget ? 1 : 0.3,
+                      opacity: isTarget ? 1 : 0.4,
                       vectorEffect: 'non-scaling-stroke'
                     }}
                   />
