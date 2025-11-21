@@ -172,7 +172,8 @@ export default function GeoGuesserDuel() {
         let transMap = {};
         try {
           // Fetch translations and capital information
-          const transRes = await fetch('https://restcountries.com/v3.1/all?fields=cca3,translations,name,capital');
+          // copied from 'https://restcountries.com/v3.1/all?fields=cca3,translations,name,capital'
+          const transRes = await fetch('capitals.json');
           if (transRes.ok) {
             const transArr = await transRes.json();
             transArr.forEach(item => transMap[item.cca3] = item);
