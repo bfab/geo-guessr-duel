@@ -651,10 +651,10 @@ export default function GeoGuesserDuel() {
                     d={country.path}
                     fill={isTarget ? '#3b82f6' : '#334155'}
                     stroke={isTarget ? '#60a5fa' : '#475569'} 
-                    strokeWidth={isTarget ? 2.5 : 1.5}
+                    strokeWidth={isTarget ? 2.5 : 1.0}
                     className={`transition-colors duration-500 ease-in-out ${isTarget ? 'z-10' : 'z-0'}`}
                     style={{ 
-                      opacity: isTarget ? 1 : 0.4,
+                      opacity: isTarget ? 1 : 0.3,
                       vectorEffect: 'non-scaling-stroke'
                     }}
                   />
