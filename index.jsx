@@ -523,8 +523,7 @@ export default function GeoGuesserDuel() {
   }
 
   // --- RENDER GAME (Country or Capital Guess) ---
-  // The map interaction remains disabled if guessing capital, but the view is zoomed in.
-  const mapInteractionDisabled = gameState === 'capital_guess';
+  const mapInteractionDisabled = false;
   const overlayText = gameState === 'country_guess' 
     ? getText('guess_country') 
     : `${getText('guess_capital')} ${getCountryName(targetCountry)}?`;
