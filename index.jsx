@@ -70,95 +70,84 @@ const LANGUAGES = [
   { code: 'zho', label: '中文', apiField: 'zho' },
 ];
 
-// --- LANGUAGE DETECTION UTILITY ---
-const getInitialLanguage = () => {
-  const browserLang = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
-  const twoLetterCode = browserLang.split('-')[0];
-  const languageMap = {
-    en: 'eng', es: 'spa', fr: 'fra', de: 'deu',
-    it: 'ita', pt: 'por', ru: 'rus', ja: 'jpn',
-    ko: 'kor', zh: 'zho'
-  };
-  return languageMap[twoLetterCode] || 'eng'; 
-};
+// --- 3D MATH & PROJECTION HELPERS ---
+const GLOBE_RADIUS = 250; // Base radius for the math
 
-// --- MERCATOR PROJECTION CONSTANTS & HELPERS ---
-const PROJECT_WIDTH = 800;
-const PROJECT_HEIGHT = 500;
-const VIEWPORT_CENTER_X = PROJECT_WIDTH / 2;
-const VIEWPORT_CENTER_Y = PROJECT_HEIGHT / 2;
-const MAX_ZOOM = 8;
-const ZOOM_INCREMENT = 1.5;
+// Convert Deg to Rad
+const rad = (d) => d * (Math.PI / 180);
 
-// Constant for the desired country size on auto-zoom
-const TARGET_FILL_PERCENTAGE = 0.25; 
+// Rotate a point (lon, lat) by rotation angles (rotLon, rotLat)
+// This simulates rotating the globe so (rotLon, rotLat) becomes the center (0,0)
+const rotatePoint3D = (lon, lat, rotLon, rotLat) => {
+  const lambda = rad(lon);
+  const phi = rad(lat);
+  // rotLon determines the longitude at the center of the screen
+  // To center longitude L, we rotate by -L. 
+  // Here we pass "rotLon" as the rotation directly. 
+  // If we want +90E to be center, rotLon should be -90.
+  // The 'flyToCountry' logic calculates the target angle.
+  const gamma = rad(rotLon); 
+  const beta = rad(rotLat);  
 
-const getMercatorCoords = (lon, lat) => {
-  let x = (lon + 180) * (PROJECT_WIDTH / 360);
-  let latRad = lat * Math.PI / 180;
-  let mercN = Math.log(Math.tan((Math.PI / 4) + (latRad / 2)));
-  let y = (PROJECT_HEIGHT / 2) - (PROJECT_WIDTH * mercN / (2 * Math.PI));
-  return [x, y];
-};
+  // Convert to Cartesian (Unit Sphere)
+  const x0 = Math.cos(phi) * Math.cos(lambda);
+  const y0 = Math.cos(phi) * Math.sin(lambda);
+  const z0 = Math.sin(phi);
 
-/**
- * Calculates the bounding box (in Mercator projection coordinates) for a given GeoJSON feature.
- */
-const getCountryBoundingBox = (feature) => {
-  if (!feature || !feature.geometry) return null;
-
-  const lonLatBounds = { minLon: 180, maxLon: -180, minLat: 90, maxLat: -90 };
-
-  const traverse = (coords) => {
-    coords.forEach(c => {
-      if (Array.isArray(c[0]) && Array.isArray(c[0][0])) { 
-        c.forEach(sub => traverse(sub));
-      } else if (Array.isArray(c[0]) && typeof c[0][0] === 'number') {
-        traverse(c);
-      } else if (typeof c[0] === 'number') { 
-        lonLatBounds.minLon = Math.min(lonLatBounds.minLon, c[0]);
-        lonLatBounds.maxLon = Math.max(lonLatBounds.maxLon, c[0]);
-        lonLatBounds.minLat = Math.min(lonLatBounds.minLat, c[1]);
-        lonLatBounds.maxLat = Math.max(lonLatBounds.maxLat, c[1]);
-      }
-    });
-  };
-
-  if (feature.geometry.type === 'Polygon') {
-    traverse(feature.geometry.coordinates);
-  } else if (feature.geometry.type === 'MultiPolygon') {
-    feature.geometry.coordinates.forEach(poly => traverse(poly));
-  }
+  // Rotate around Z axis (Longitude)
+  const k_cos = Math.cos(gamma);
+  const k_sin = Math.sin(gamma);
   
-  // Convert min/max LonLat to Mercator X/Y
-  const [minX, maxY] = getMercatorCoords(lonLatBounds.minLon, lonLatBounds.minLat);
-  const [maxX, minY] = getMercatorCoords(lonLatBounds.maxLon, lonLatBounds.maxLat);
+  const x1 = x0 * k_cos - y0 * k_sin;
+  const y1 = x0 * k_sin + y0 * k_cos;
+  const z1 = z0;
 
-  return { minX, minY, maxX, maxY };
+  // Rotate around Y axis (Latitude tilt)
+  const t_cos = Math.cos(-beta);
+  const t_sin = Math.sin(-beta);
+  
+  const x2 = x1 * t_cos + z1 * t_sin;
+  const y2 = y1;
+  const z2 = -x1 * t_sin + z1 * t_cos;
+
+  return { x: y2, y: z2, z: x2 }; // Swap axes to match screen coords (X horizontal, Y vertical, Z depth)
 };
 
+// 3D Orthographic Projection
+const project3D = (lon, lat, rotLon, rotLat, scale, width, height) => {
+  const p = rotatePoint3D(lon, lat, rotLon, rotLat);
+  
+  // Back-face culling check (is the point behind the globe?)
+  // We allow a small buffer (-0.2) to prevent lines clipping too early at the edge
+  if (p.z < -0.2) return null; 
 
-const generatePath = (geometry) => {
-  if (!geometry) return '';
-  const processRing = (ring) => {
-    if (!ring || ring.length === 0) return '';
-    let path = '';
-    ring.forEach((point, index) => {
-      const [x, y] = getMercatorCoords(point[0], point[1]);
-      if (isNaN(x) || isNaN(y)) return;
-      path += (index === 0 ? 'M' : 'L') + `${x.toFixed(1)},${y.toFixed(1)} `;
-    });
-    path += 'Z ';
-    return path;
-  };
-  if (geometry.type === 'Polygon') {
-    return geometry.coordinates.map(processRing).join('');
-  } else if (geometry.type === 'MultiPolygon') {
-    return geometry.coordinates.map(poly => poly.map(processRing).join('')).join('');
-  }
-  return '';
+  const x = (p.x * GLOBE_RADIUS * scale) + (width / 2);
+  const y = (height / 2) - (p.y * GLOBE_RADIUS * scale);
+  
+  return { x, y, z: p.z };
 };
-// --- END MERCATOR PROJECTION HELPERS ---
+
+const getBounds = (feature) => {
+    let minLon = 180, maxLon = -180, minLat = 90, maxLat = -90;
+    const traverse = (coords) => {
+        if (typeof coords[0] === 'number') {
+            minLon = Math.min(minLon, coords[0]);
+            maxLon = Math.max(maxLon, coords[0]);
+            minLat = Math.min(minLat, coords[1]);
+            maxLat = Math.max(maxLat, coords[1]);
+        } else {
+            coords.forEach(traverse);
+        }
+    }
+    traverse(feature.geometry.coordinates);
+    return { 
+        centerLon: (minLon + maxLon) / 2, 
+        centerLat: (minLat + maxLat) / 2,
+        spanLon: maxLon - minLon,
+        spanLat: maxLat - minLat
+    };
+}
+
 
 export default function GeoGuesserDuel() {
   // --- DATA STATE ---
@@ -173,83 +162,37 @@ export default function GeoGuesserDuel() {
   const [scores, setScores] = useState({ p1: 0, p2: 0 });
   const [roundWinners, setRoundWinners] = useState({ p1: false, p2: false });
   const [currentLang, setCurrentLang] = useState(getInitialLanguage);
-  
-  // New state for sampling without replacement
   const [availableCountries, setAvailableCountries] = useState([]);
-
-  // Game flow state ('menu' | 'country_guess' | 'capital_guess' | 'game_over')
   const [gameState, setGameState] = useState('menu'); 
-  // Confirmation modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  // --- MAP TRANSFORM STATE ---
-  const [transform, setTransform] = useState({ k: 1, x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragRef = useRef({ startX: 0, startY: 0, lastX: 0, lastY: 0 });
-  
-  // Used to prevent accidental reveal/tap when ending a drag
-  const isClickRef = useRef(true); 
-
-  // --- RESPONSIVE MAP CONTAINER LOGIC ---
+  // --- GLOBE VIEW STATE ---
+  const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
   const mapContainerRef = useRef(null);
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  
+  // Current Camera State (Animated)
+  const [globeState, setGlobeState] = useState({
+    rotLon: 0,
+    rotLat: 0,
+    scale: 0.8
+  });
 
-  useEffect(() => {
-    if (!mapContainerRef.current) return;
-    const updateSize = () => {
-      if (mapContainerRef.current) {
-        const { offsetWidth, offsetHeight } = mapContainerRef.current;
-        setContainerSize({ width: offsetWidth, height: offsetHeight });
-      }
-    };
-    
-    const resizeObserver = new ResizeObserver(updateSize);
-    resizeObserver.observe(mapContainerRef.current);
-    updateSize(); // Initial check
-    
-    return () => resizeObserver.disconnect();
-  }, [gameState]); // Re-bind if game state changes the DOM structure
+  // Target Camera State (For Animation)
+  const animationRef = useRef({
+    startRotLon: 0, startRotLat: 0, startScale: 0.8,
+    targetRotLon: 0, targetRotLat: 0, targetScale: 0.8,
+    startTime: 0, duration: 1500, active: false
+  });
 
-  // Calculate dynamic ViewBox to fill screen without stretching/distorting map paths
-  const viewBoxData = useMemo(() => {
-    // Default fallback to prevent divide by zero
-    if (containerSize.width === 0 || containerSize.height === 0) {
-      return { str: `0 0 ${PROJECT_WIDTH} ${PROJECT_HEIGHT}`, w: PROJECT_WIDTH, h: PROJECT_HEIGHT, x: 0, y: 0 };
-    }
+  // --- LANGUAGE DETECTION UTILITY ---
+  function getInitialLanguage() {
+    const browserLang = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
+    const twoLetterCode = browserLang.split('-')[0];
+    const languageMap = { en: 'eng', es: 'spa', fr: 'fra', de: 'deu', it: 'ita', pt: 'por', ru: 'rus', ja: 'jpn', ko: 'kor', zh: 'zho' };
+    return languageMap[twoLetterCode] || 'eng'; 
+  }
 
-    const containerAspect = containerSize.width / containerSize.height;
-    const mapAspect = PROJECT_WIDTH / PROJECT_HEIGHT;
-
-    let vbW, vbH, vbX, vbY;
-
-    if (containerAspect < mapAspect) {
-      // Container is taller/narrower (Vertical Screen/Mobile)
-      // Keep width fixed at 800, expand height
-      vbW = PROJECT_WIDTH;
-      vbH = PROJECT_WIDTH / containerAspect;
-      vbX = 0;
-      // Center the 500px map vertically within the new taller viewbox
-      vbY = (PROJECT_HEIGHT - vbH) / 2;
-    } else {
-      // Container is wider (Wide Screen)
-      // Keep height fixed at 500, expand width
-      vbH = PROJECT_HEIGHT;
-      vbW = PROJECT_HEIGHT * containerAspect;
-      vbY = 0;
-      // Center the 800px map horizontally
-      vbX = (PROJECT_WIDTH - vbW) / 2;
-    }
-
-    return { 
-      str: `${vbX} ${vbY} ${vbW} ${vbH}`, 
-      w: vbW, 
-      h: vbH,
-      x: vbX,
-      y: vbY
-    };
-  }, [containerSize]);
-
-  // --- INITIAL LOAD ---
+  // --- INITIAL DATA LOAD ---
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -270,8 +213,13 @@ export default function GeoGuesserDuel() {
         }
 
         const validCountries = geoJson.features
-            .filter(f => f.id !== 'ATA' && f.id !== '-99'); // Remove Antarctica and unknown territories
+            .filter(f => f.id !== 'ATA' && f.id !== '-99'); 
             
+        // Pre-calculate centroids for simpler sorting/rotation
+        validCountries.forEach(f => {
+            f.properties.bounds = getBounds(f);
+        });
+
         setGeoData(validCountries);
         setLoading(false);
       } catch (err) {
@@ -283,649 +231,398 @@ export default function GeoGuesserDuel() {
     loadData();
   }, []);
 
-  // --- ZOOM & PAN CALCULATION ---
-  const calculateZoomAndPan = useCallback((feature) => {
-    if (!feature) return { k: 1, x: 0, y: 0 };
-    
-    const bounds = getCountryBoundingBox(feature);
-    if (!bounds) return { k: 1, x: 0, y: 0 };
-
-    const width = bounds.maxX - bounds.minX;
-    const height = bounds.maxY - bounds.minY;
-
-    // Use viewBox dimensions for zoom calc so it feels proportional to screen size
-    const zoomX = (viewBoxData.w * TARGET_FILL_PERCENTAGE) / width;
-    const zoomY = (viewBoxData.h * TARGET_FILL_PERCENTAGE) / height;
-
-    let k = Math.min(zoomX, zoomY);
-    k = Math.max(1, Math.min(MAX_ZOOM, k));
-    
-    const centerX = (bounds.minX + bounds.maxX) / 2;
-    const centerY = (bounds.minY + bounds.maxY) / 2;
-    
-    // Center relative to the DYNAMIC ViewBox center
-    const viewCenterX = viewBoxData.x + (viewBoxData.w / 2);
-    const viewCenterY = viewBoxData.y + (viewBoxData.h / 2);
-
-    const newX = viewCenterX - centerX * k;
-    const newY = viewCenterY - centerY * k;
-
-    return { k, x: newX, y: newY };
-  }, [viewBoxData]);
-
-  // Use the calculated transformation to smoothly transition the map view
-  const animateToCountry = useCallback((feature) => {
-    if (!feature) return;
-    const newTransform = calculateZoomAndPan(feature);
-    setTransform(newTransform);
-  }, [calculateZoomAndPan]);
-
-
-  // IMPORTANT: Re-calculate zoom if the screen size (viewBoxData) changes while looking at a country.
-  // This fixes the issue where initial load might use the wrong aspect ratio before ResizeObserver fires.
+  // --- RESPONSIVE RESIZER ---
   useEffect(() => {
-    if (targetCountry) {
-        animateToCountry(targetCountry);
+    if (!mapContainerRef.current) return;
+    const observer = new ResizeObserver(() => {
+        if(mapContainerRef.current) {
+            setContainerSize({
+                width: mapContainerRef.current.offsetWidth,
+                height: mapContainerRef.current.offsetHeight
+            });
+        }
+    });
+    observer.observe(mapContainerRef.current);
+    return () => observer.disconnect();
+  }, [gameState]);
+
+
+  // --- ANIMATION LOOP ---
+  const animate = useCallback((timestamp) => {
+    const anim = animationRef.current;
+    if (!anim.active) return;
+
+    if (!anim.startTime) anim.startTime = timestamp;
+    const elapsed = timestamp - anim.startTime;
+    const progress = Math.min(elapsed / anim.duration, 1);
+    
+    // Easing function (Ease-in-out Cubic)
+    const t = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+    // Interpolate Rotation
+    const currentRotLon = anim.startRotLon + (anim.targetRotLon - anim.startRotLon) * t;
+    const currentRotLat = anim.startRotLat + (anim.targetRotLat - anim.startRotLat) * t;
+    
+    // Interpolate Scale (Direct zoom, no parabolic dip)
+    const currentScale = anim.startScale + (anim.targetScale - anim.startScale) * t;
+
+    setGlobeState({
+        rotLon: currentRotLon,
+        rotLat: currentRotLat,
+        scale: currentScale
+    });
+
+    if (progress < 1) {
+        requestAnimationFrame(animate);
+    } else {
+        anim.active = false;
     }
-  }, [viewBoxData, targetCountry, animateToCountry]);
+  }, []);
 
-
-  // --- GAME LOGIC & TRANSLATIONS ---
-
-  const getText = useCallback((key, ...args) => {
-    const text = UI_TEXT[currentLang][key] || UI_TEXT['eng'][key];
-    if (typeof text === 'function') {
-      return text(...args);
+  // --- CAMERA CONTROL LOGIC ---
+  const flyToCountry = useCallback((feature) => {
+    if (!feature) {
+        // Default view (Earth overview)
+        animationRef.current = {
+            ...animationRef.current,
+            startRotLon: globeState.rotLon,
+            startRotLat: globeState.rotLat,
+            startScale: globeState.scale,
+            targetRotLon: 0,
+            targetRotLat: 0,
+            targetScale: 0.8,
+            active: true,
+            startTime: 0,
+            duration: 1500
+        };
+        requestAnimationFrame(animate);
+        return;
     }
-    return text;
-  }, [currentLang]);
 
-  const getCountryName = (feature) => {
-    if (!feature) return "Unknown";
-    const id = feature.id;
-    const tData = translationData[id];
-    const langConfig = LANGUAGES.find(l => l.code === currentLang);
-    if (tData && langConfig && tData.translations && tData.translations[langConfig.apiField]) {
-      return tData.translations[langConfig.apiField].common;
-    }
-    return tData?.name?.common || feature.properties.name;
-  };
+    const { centerLon, centerLat, spanLon, spanLat } = feature.properties.bounds;
 
-  const getCapitalName = (feature) => {
-    if (!feature) return "Unknown Capital";
-    const id = feature.id;
-    const tData = translationData[id];
-    return tData?.capital?.[0] || "Unknown Capital";
-  }
+    const maxSpan = Math.max(spanLon, spanLat);
+    let targetScale = 3.5 - (Math.sqrt(maxSpan) * 0.25);
+    targetScale = Math.max(0.9, Math.min(4.0, targetScale));
 
-  // --- Core Game Flow Logic ---
+    // Normalize rotation
+    let currentLon = globeState.rotLon;
+    // FIX: use negative centerLon to rotate the point to the center (0)
+    // If point is at +90 (East), we rotate by -90 to bring it to 0.
+    let targetLon = -centerLon; 
+
+    const diff = targetLon - currentLon;
+    if (diff > 180) targetLon -= 360;
+    if (diff < -180) targetLon += 360;
+
+    animationRef.current = {
+        startRotLon: currentLon,
+        startRotLat: globeState.rotLat,
+        startScale: globeState.scale,
+        targetRotLon: targetLon,
+        targetRotLat: -centerLat, 
+        targetScale: targetScale,
+        startTime: 0,
+        active: true,
+        duration: 2000 
+    };
+    requestAnimationFrame(animate);
+
+  }, [globeState, animate]);
+
+  // --- GAME LOGIC ---
 
   const pickRandomCountry = useCallback(() => {
     if (availableCountries.length === 0) {
       setGameState('game_over'); 
       return;
     }
-
     const randomIndex = Math.floor(Math.random() * availableCountries.length);
     const newTarget = availableCountries[randomIndex];
-
     setAvailableCountries(prev => prev.filter((_, index) => index !== randomIndex));
-
     setTargetCountry(newTarget);
     setRevealed(false);
     setRoundWinners({ p1: false, p2: false });
-    
-    // Note: animateToCountry is also triggered by the useEffect observing targetCountry/viewBoxData
-    animateToCountry(newTarget);
-
-  }, [availableCountries, animateToCountry]); 
+    flyToCountry(newTarget);
+  }, [availableCountries, flyToCountry]); 
 
   const initializeGameCountries = useCallback((mode) => {
     const list = geoData.filter(f => {
-      if (mode === 'capital_guess') {
-        return getCapitalName(f) !== "Unknown Capital";
-      }
+      if (mode === 'capital_guess') return getCapitalName(f) !== "Unknown Capital";
       return true;
     });
     setAvailableCountries(list);
   }, [geoData]);
 
-
-  useEffect(() => {
-    if (gameState === 'country_guess' || gameState === 'capital_guess') {
-      if (geoData.length > 0 && availableCountries.length === 0) {
-        initializeGameCountries(gameState);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState, geoData]); 
-
   useEffect(() => {
     if ((gameState === 'country_guess' || gameState === 'capital_guess') && 
-        geoData.length > 0 && 
-        availableCountries.length > 0 && 
-        !targetCountry
-    ) {
+        geoData.length > 0 && availableCountries.length === 0) {
+        initializeGameCountries(gameState);
+    }
+  }, [gameState, geoData, initializeGameCountries, availableCountries.length]); 
+
+  // Auto-start first round
+  useEffect(() => {
+    if ((gameState === 'country_guess' || gameState === 'capital_guess') && 
+        availableCountries.length > 0 && !targetCountry) {
         pickRandomCountry();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableCountries, gameState]); 
+  }, [availableCountries, gameState, targetCountry, pickRandomCountry]);
 
-
-  const toggleRoundWinner = (player) => {
-    setRoundWinners(prev => ({
-      ...prev,
-      [player]: !prev[player]
-    }));
+  // --- HELPERS ---
+  const getText = (key, ...args) => {
+    const text = UI_TEXT[currentLang][key] || UI_TEXT['eng'][key];
+    return typeof text === 'function' ? text(...args) : text;
   };
 
-  const handleNextRound = () => {
-    setScores(prev => ({
-      p1: prev.p1 + (roundWinners.p1 ? 1 : 0),
-      p2: prev.p2 + (roundWinners.p2 ? 1 : 0)
-    }));
-    pickRandomCountry();
+  const getCountryName = (feature) => {
+    if (!feature) return "Unknown";
+    const tData = translationData[feature.id];
+    const langConfig = LANGUAGES.find(l => l.code === currentLang);
+    return tData?.translations?.[langConfig.apiField]?.common || tData?.name?.common || feature.properties.name;
+  };
+
+  const getCapitalName = (feature) => {
+    return translationData[feature.id]?.capital?.[0] || "Unknown Capital";
   };
 
   const startGame = (mode) => {
     setScores({ p1: 0, p2: 0 });
     setGameState(mode);
     setTargetCountry(null); 
-    initializeGameCountries(mode); 
-    setTransform({ k: 1, x: 0, y: 0 });
+    setAvailableCountries([]); 
+    setGlobeState({ rotLon: 0, rotLat: 0, scale: 0.8 }); 
   };
-  
+
   const resetToMenu = () => {
     setGameState('menu');
     setScores({ p1: 0, p2: 0 });
     setTargetCountry(null);
-    setAvailableCountries([]);
-    setTransform({ k: 1, x: 0, y: 0 });
     setShowConfirmModal(false);
-  }
+  };
 
-  const mapPaths = useMemo(() => {
-    return geoData.map(feature => ({
-      id: feature.id,
-      path: generatePath(feature.geometry),
-    }));
-  }, [geoData]);
+  // --- RENDER PREP ---
+  // Generate SVG Paths based on current 3D State
+  const renderedPaths = useMemo(() => {
+    const { rotLon, rotLat, scale } = globeState;
+    const { width, height } = containerSize;
 
-  // --- MANUAL ZOOM & PAN HANDLERS ---
-  
-  const handleZoom = (factor, e) => {
-    e.stopPropagation();
-    setTransform(p => {
-      const k_old = p.k;
-      let k_new = k_old * factor;
+    // Sort countries by Z-index of their centroid so front countries cover back countries
+    // This is a simple Painter's Algorithm. Perfect culling needs full polygon clipping,
+    // but centroid sorting + backface culling is usually enough for this visual style.
+    const sortedFeatures = [...geoData].map(feature => {
+        // Rotate centroid to see depth
+        const c = feature.properties.bounds;
+        const p3 = rotatePoint3D(c.centerLon, c.centerLat, rotLon, rotLat);
+        return { feature, z: p3.z };
+    }).sort((a, b) => a.z - b.z);
 
-      k_new = Math.max(1, Math.min(MAX_ZOOM, k_new));
-      if (k_new === k_old) return p;
+    const paths = [];
+    
+    sortedFeatures.forEach(({ feature, z }) => {
+        // If the centroid is deep behind the globe, skip entirely (Optimization)
+        if (z < -0.5) return;
 
-      // Center zoom around the dynamic view center
-      const centerX = viewBoxData.x + (viewBoxData.w / 2);
-      const centerY = viewBoxData.y + (viewBoxData.h / 2);
+        let pathStr = "";
+        
+        const processRing = (coords) => {
+            let ringPath = "";
+            let firstPoint = true;
+            let allPointsHidden = true;
+            
+            for(let i=0; i<coords.length; i++) {
+                const [lon, lat] = coords[i];
+                const p = project3D(lon, lat, rotLon, rotLat, scale, width, height);
+                
+                if (p) {
+                    allPointsHidden = false;
+                    ringPath += (firstPoint ? "M" : "L") + `${p.x.toFixed(1)},${p.y.toFixed(1)} `;
+                    firstPoint = false;
+                } else {
+                    // Handle line break if point wraps behind globe?
+                    // For simple visual, we just skip drawing to hidden points, creating a "horizon" clip
+                    // A proper implementation requires polygon clipping algorithms (Sutherland-Hodgman)
+                    // but that is too heavy for a single-file react component.
+                    // Instead, we just stop the line.
+                    firstPoint = true; 
+                }
+            }
+            if (!allPointsHidden) {
+                pathStr += ringPath + "z ";
+            }
+        };
 
-      const sx = (centerX - p.x) / k_old;
-      const sy = (centerY - p.y) / k_old;
+        const geom = feature.geometry;
+        if (geom.type === 'Polygon') {
+            geom.coordinates.forEach(processRing);
+        } else if (geom.type === 'MultiPolygon') {
+            geom.coordinates.forEach(poly => poly.forEach(processRing));
+        }
 
-      const newX = centerX - sx * k_new;
-      const newY = centerY - sy * k_new;
-
-      return { k: k_new, x: newX, y: newY };
+        if (pathStr.length > 5) {
+            paths.push({ id: feature.id, d: pathStr, z });
+        }
     });
-  };
 
-  const handleZoomIn = (e) => handleZoom(ZOOM_INCREMENT, e);
-  const handleZoomOut = (e) => handleZoom(1 / ZOOM_INCREMENT, e);
+    return paths;
+  }, [geoData, globeState, containerSize]);
 
-  const handleResetView = (e) => {
-    e.stopPropagation();
-    if (targetCountry) {
-      animateToCountry(targetCountry); 
-    } else {
-      setTransform({ k: 1, x: 0, y: 0 });
-    }
-  };
 
-  // --- DRAGGING LOGIC ---
-  const getClientCoords = (e) => {
-    if (e.touches && e.touches.length > 0) {
-        return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
-    }
-    return { clientX: e.clientX, clientY: e.clientY };
-  };
-
-  const onDragStart = (e) => {
-    if (transform.k <= 1) return; 
-    setIsDragging(true);
-    isClickRef.current = true; 
-    const { clientX, clientY } = getClientCoords(e);
-    dragRef.current = { 
-      startX: clientX, 
-      startY: clientY, 
-      lastX: transform.x, 
-      lastY: transform.y 
-    };
-  };
-
-  const onMouseMove = (e) => {
-    if (!isDragging) return;
-    
-    if (e.touches) {
-      e.preventDefault(); 
-    }
-
-    const { clientX, clientY } = getClientCoords(e);
-    const dx = clientX - dragRef.current.startX;
-    const dy = clientY - dragRef.current.startY;
-    
-    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-        isClickRef.current = false;
-    }
-
-    setTransform(p => ({ ...p, x: dragRef.current.lastX + dx, y: dragRef.current.lastY + dy }));
-  };
-
-  const onDragEnd = () => {
-    setIsDragging(false);
-  };
-
-  // --- SUB-COMPONENTS ---
+  // --- SUB COMPONENTS ---
 
   const ConfirmationModal = () => (
-    <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-opacity duration-300">
-      <div className="bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700 w-full max-w-sm text-center transform scale-100 animate-in fade-in zoom-in-50">
+    <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+      <div className="bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700 w-full max-w-sm text-center animate-in fade-in zoom-in-50">
         <Landmark className="w-10 h-10 text-rose-500 mx-auto mb-4" />
         <h3 className="text-xl font-bold text-white mb-2">{getText('confirm_title')}</h3>
         <p className="text-slate-300 mb-6">{getText('confirm_msg')}</p>
         <div className="flex gap-4">
-          <button 
-            onClick={resetToMenu}
-            className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-semibold py-3 rounded-lg transition"
-          >
-            {getText('confirm_yes')}
-          </button>
-          <button 
-            onClick={() => setShowConfirmModal(false)}
-            className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold py-3 rounded-lg transition"
-          >
-            {getText('confirm_no')}
-          </button>
+          <button onClick={resetToMenu} className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-semibold py-3 rounded-lg">{getText('confirm_yes')}</button>
+          <button onClick={() => setShowConfirmModal(false)} className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold py-3 rounded-lg">{getText('confirm_no')}</button>
         </div>
       </div>
     </div>
   );
 
   const GameOverModal = () => {
-    let winner = null;
-    let icon = <Frown size={40} className="text-yellow-400 mx-auto mb-4" />;
-    let message = getText('game_over_tie');
-    let winnerColor = "text-yellow-400";
-
-    if (scores.p1 > scores.p2) {
-      winner = "Player 1";
-      message = `${getText('game_over_winner')} ${getText('p1')}!`;
-      icon = <Trophy size={40} className="text-rose-500 mx-auto mb-4" />;
-      winnerColor = "text-rose-500";
-    } else if (scores.p2 > scores.p1) {
-      winner = "Player 2";
-      message = `${getText('game_over_winner')} ${getText('p2')}!`;
-      icon = <Trophy size={40} className="text-emerald-500 mx-auto mb-4" />;
-      winnerColor = "text-emerald-500";
-    }
+    let winner = null, icon = <Frown size={40} className="text-yellow-400 mx-auto mb-4" />, msg = getText('game_over_tie'), color = "text-yellow-400";
+    if (scores.p1 > scores.p2) { msg = `${getText('game_over_winner')} ${getText('p1')}!`; icon = <Trophy size={40} className="text-rose-500 mx-auto mb-4" />; color = "text-rose-500"; }
+    else if (scores.p2 > scores.p1) { msg = `${getText('game_over_winner')} ${getText('p2')}!`; icon = <Trophy size={40} className="text-emerald-500 mx-auto mb-4" />; color = "text-emerald-500"; }
 
     return (
-      <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-opacity duration-300">
-        <div className="bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700 w-full max-w-lg text-center transform scale-100 animate-in fade-in zoom-in-50">
+      <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div className="bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700 w-full max-w-lg text-center animate-in fade-in zoom-in-50">
           {icon}
           <h3 className="text-2xl font-bold text-white mb-4">{getText('game_over_title')}</h3>
-          <p className={`text-3xl font-extrabold mb-8 ${winnerColor}`}>{message}</p>
-          
+          <p className={`text-3xl font-extrabold mb-8 ${color}`}>{msg}</p>
           <div className="flex justify-center gap-8 mb-8">
-            <div className="flex flex-col items-center">
-              <div className="text-xl font-bold text-rose-400 mb-1">{getText('p1')}</div>
-              <div className="text-4xl font-mono font-extrabold text-white">{scores.p1}</div>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="text-xl font-bold text-emerald-400 mb-1">{getText('p2')}</div>
-              <div className="text-4xl font-mono font-extrabold text-white">{scores.p2}</div>
-            </div>
+            <div className="flex flex-col items-center"><div className="text-xl font-bold text-rose-400 mb-1">{getText('p1')}</div><div className="text-4xl font-mono font-extrabold text-white">{scores.p1}</div></div>
+            <div className="flex flex-col items-center"><div className="text-xl font-bold text-emerald-400 mb-1">{getText('p2')}</div><div className="text-4xl font-mono font-extrabold text-white">{scores.p2}</div></div>
           </div>
-          
-          <button 
-            onClick={resetToMenu}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition shadow-md shadow-blue-900/40 flex items-center justify-center gap-2"
-          >
-            <PartyPopper size={20} /> {getText('game_over_play_again')}
-          </button>
+          <button onClick={resetToMenu} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2"><PartyPopper size={20} /> {getText('game_over_play_again')}</button>
         </div>
       </div>
     );
   };
 
+  if (loading) return <div className="flex items-center justify-center h-screen bg-slate-900 text-white font-sans"><div className="text-center"><Globe className="w-12 h-12 animate-spin mx-auto mb-4 text-blue-400" /><p className="text-xl font-light">{getText('loading')}</p></div></div>;
+  if (error) return <div className="p-8 bg-slate-900 text-red-400 text-center">{error}</div>;
 
-  const GameMenu = () => (
-    <div className="flex flex-col items-center justify-center flex-1 p-8 text-center animate-in fade-in">
-      <h2 className="text-5xl font-extrabold text-white mb-10 tracking-tight">{getText('menu_title')}</h2>
-      <div className="flex flex-col md:flex-row gap-6 w-full max-w-2xl">
-        
-        <button 
-          onClick={() => startGame('country_guess')}
-          className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-6 px-4 rounded-xl shadow-xl shadow-blue-900/40 transition transform hover:scale-[1.02] active:scale-95 flex items-center justify-center flex-col gap-3"
-        >
-          <Globe size={48} />
-          <span className="text-2xl">{getText('mode_country')}</span>
-          <p className="text-sm opacity-75">See the map, name the country.</p>
-        </button>
-
-        <button 
-          onClick={() => startGame('capital_guess')}
-          className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-6 px-4 rounded-xl shadow-xl shadow-emerald-900/40 transition transform hover:scale-[1.02] active:scale-95 flex items-center justify-center flex-col gap-3"
-        >
-          <Landmark size={48} />
-          <span className="text-2xl">{getText('mode_capital')}</span>
-          <p className="text-sm opacity-75">See the country name, name its capital.</p>
-        </button>
-      </div>
-    </div>
-  );
-
-  // --- RENDER ---
-  if (loading) {
+  // --- MENU RENDER ---
+  if (gameState === 'menu') {
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-900 text-white font-sans">
-        <div className="text-center">
-          <Globe className="w-12 h-12 animate-spin mx-auto mb-4 text-blue-400" />
-          <p className="text-xl font-light">{getText('loading')}</p>
+      <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans overflow-hidden">
+        <header className="bg-slate-800 border-b border-slate-700 px-4 py-3 shadow-md z-20"><div className="max-w-7xl mx-auto flex justify-between items-center gap-4"><div className="flex items-center gap-2"><MapIcon className="text-blue-400" size={24} /><h1 className="text-xl font-bold tracking-wider">GEO<span className="text-blue-400">DUEL</span></h1></div><select value={currentLang} onChange={(e) => setCurrentLang(e.target.value)} className="bg-slate-900 text-slate-300 text-sm border border-slate-600 rounded px-2 py-1 focus:outline-none focus:border-blue-500">{LANGUAGES.map(lang => (<option key={lang.code} value={lang.code}>{lang.label}</option>))}</select></div></header>
+        <div className="flex flex-col items-center justify-center flex-1 p-8 text-center animate-in fade-in">
+          <h2 className="text-5xl font-extrabold text-white mb-10 tracking-tight">{getText('menu_title')}</h2>
+          <div className="flex flex-col md:flex-row gap-6 w-full max-w-2xl">
+            <button onClick={() => startGame('country_guess')} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-6 px-4 rounded-xl shadow-xl shadow-blue-900/40 transition transform hover:scale-[1.02] active:scale-95 flex items-center justify-center flex-col gap-3"><Globe size={48} /><span className="text-2xl">{getText('mode_country')}</span></button>
+            <button onClick={() => startGame('capital_guess')} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-6 px-4 rounded-xl shadow-xl shadow-emerald-900/40 transition transform hover:scale-[1.02] active:scale-95 flex items-center justify-center flex-col gap-3"><Landmark size={48} /><span className="text-2xl">{getText('mode_capital')}</span></button>
+          </div>
         </div>
       </div>
     );
   }
-
-  if (error) return <div className="p-8 bg-slate-900 text-red-400 text-center">{error}</div>;
-
-  if (gameState === 'menu') {
-    return (
-      <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans overflow-hidden">
-        <header className="bg-slate-800 border-b border-slate-700 px-4 py-3 shadow-md z-20">
-          <div className="max-w-7xl mx-auto flex justify-between items-center gap-4">
-            <div className="flex items-center gap-2">
-              <MapIcon className="text-blue-400" size={24} />
-              <h1 className="text-xl font-bold tracking-wider">GEO<span className="text-blue-400">DUEL</span></h1>
-            </div>
-            <select 
-              value={currentLang}
-              onChange={(e) => setCurrentLang(e.target.value)}
-              className="bg-slate-900 text-slate-300 text-sm border border-slate-600 rounded px-2 py-1 focus:outline-none focus:border-blue-500"
-            >
-              {LANGUAGES.map(lang => (
-                <option key={lang.code} value={lang.code}>{lang.label}</option>
-              ))}
-            </select>
-          </div>
-        </header>
-        <GameMenu />
-      </div>
-    );
-  }
-
-  if (gameState === 'game_over') {
-    return (
-      <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans overflow-hidden">
-        <header className="bg-slate-800 border-b border-slate-700 px-4 py-3 shadow-md z-20">
-          <div className="max-w-7xl mx-auto flex justify-between items-center gap-4">
-            <div className="flex items-center gap-2">
-              <MapIcon className="text-blue-400" size={24} />
-              <h1 className="text-xl font-bold tracking-wider">GEO<span className="text-blue-400">DUEL</span></h1>
-            </div>
-            <select 
-              value={currentLang}
-              onChange={(e) => setCurrentLang(e.target.value)}
-              className="bg-slate-900 text-slate-300 text-sm border border-slate-600 rounded px-2 py-1 focus:outline-none focus:border-blue-500"
-            >
-              {LANGUAGES.map(lang => (
-                <option key={lang.code} value={lang.code}>{lang.label}</option>
-              ))}
-            </select>
-          </div>
-        </header>
-        <GameOverModal />
-      </div>
-    );
-  }
-
-  // --- RENDER GAME (Country or Capital Guess) ---
-  const mapInteractionDisabled = false;
   
-  const overlayText = gameState === 'country_guess' 
-    ? getText('guess_country') 
-    : `${getText('guess_capital')} ${getCountryName(targetCountry)}?`;
-  
-  const revealedAnswer = gameState === 'country_guess' 
-    ? getCountryName(targetCountry) 
-    : getCapitalName(targetCountry);
+  if (gameState === 'game_over') return <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans overflow-hidden"><header className="bg-slate-800 border-b border-slate-700 px-4 py-3 shadow-md z-20"><div className="max-w-7xl mx-auto flex justify-between items-center gap-4"><div className="flex items-center gap-2"><MapIcon className="text-blue-400" size={24} /><h1 className="text-xl font-bold tracking-wider">GEO<span className="text-blue-400">DUEL</span></h1></div></div></header><GameOverModal /></div>;
+
+  // --- GAME RENDER ---
+  const revealedAnswer = gameState === 'country_guess' ? getCountryName(targetCountry) : getCapitalName(targetCountry);
+  const overlayText = gameState === 'country_guess' ? getText('guess_country') : `${getText('guess_capital')} ${getCountryName(targetCountry)}?`;
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans overflow-hidden select-none"
-         onMouseMove={onMouseMove}
-         onMouseUp={onDragEnd}
-         onMouseLeave={onDragEnd}
-         onTouchMove={onMouseMove}
-         onTouchEnd={onDragEnd}>
-      
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans overflow-hidden select-none">
       {showConfirmModal && <ConfirmationModal />}
-
+      
       {/* HEADER */}
       <header className="bg-slate-800 border-b border-slate-700 px-4 py-3 shadow-md z-20">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="flex items-center justify-between w-full sm:w-auto gap-4">
-            <div className="flex items-center gap-2">
-              <MapIcon className="text-blue-400" size={24} />
-              <h1 className="text-xl font-bold tracking-wider hidden md:block">GEO<span className="text-blue-400">DUEL</span></h1>
-              <span className="text-xs font-semibold uppercase tracking-wider bg-slate-900 text-blue-300 px-2 py-1 rounded-full ml-2">
-                {gameState === 'country_guess' ? getText('mode_country') : getText('mode_capital')}
-              </span>
-            </div>
-            <select 
-              value={currentLang}
-              onChange={(e) => setCurrentLang(e.target.value)}
-              className="bg-slate-900 text-slate-300 text-sm border border-slate-600 rounded px-2 py-1 focus:outline-none focus:border-blue-500"
-            >
-              {LANGUAGES.map(lang => (
-                <option key={lang.code} value={lang.code}>{lang.label}</option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2"><MapIcon className="text-blue-400" size={24} /><h1 className="text-xl font-bold tracking-wider hidden md:block">GEO<span className="text-blue-400">DUEL</span></h1><span className="text-xs font-semibold uppercase tracking-wider bg-slate-900 text-blue-300 px-2 py-1 rounded-full ml-2">{gameState === 'country_guess' ? getText('mode_country') : getText('mode_capital')}</span></div>
+            <select value={currentLang} onChange={(e) => setCurrentLang(e.target.value)} className="bg-slate-900 text-slate-300 text-sm border border-slate-600 rounded px-2 py-1 focus:outline-none focus:border-blue-500">{LANGUAGES.map(lang => (<option key={lang.code} value={lang.code}>{lang.label}</option>))}</select>
           </div>
-
-          {/* Scoreboard and Rounds Remaining */}
           <div className="flex items-center gap-8 bg-slate-900/50 px-8 py-2 rounded-full border border-slate-700">
-             <div className="flex flex-col items-center">
-              <span className="text-xs font-bold uppercase tracking-wider text-blue-400">
-                <MapIcon size={12} className="inline-block mr-1" />
-                {availableCountries.length > 0 ? getText('rounds_remaining', availableCountries.length) : (targetCountry ? 'Final Round!' : 'Preparing...')}
-              </span>
-            </div>
-            
+             <div className="flex flex-col items-center"><span className="text-xs font-bold uppercase tracking-wider text-blue-400"><MapIcon size={12} className="inline-block mr-1" />{availableCountries.length > 0 ? getText('rounds_remaining', availableCountries.length) : 'Final Round!'}</span></div>
             <div className="h-8 w-px bg-slate-600 hidden sm:block"></div>
-
-            <div className={`flex flex-col items-center transition-colors ${roundWinners.p1 && revealed ? 'text-rose-400' : ''}`}>
-              <div className="flex items-center gap-2 text-xs text-rose-400 font-bold uppercase tracking-wider">
-                <User size={12} /> <span className="hidden sm:inline">{getText('p1')}</span><span className="sm:hidden">P1</span>
-              </div>
-              <span className="text-2xl font-mono font-bold text-white">
-                {scores.p1}
-                {revealed && roundWinners.p1 && <span className="text-sm text-green-400 ml-1 animate-pulse">+1</span>}
-              </span>
-            </div>
-
+            <div className={`flex flex-col items-center ${roundWinners.p1 && revealed ? 'text-rose-400' : ''}`}><div className="flex items-center gap-2 text-xs text-rose-400 font-bold uppercase tracking-wider"><User size={12} /> P1</div><span className="text-2xl font-mono font-bold text-white">{scores.p1}</span></div>
             <div className="h-8 w-px bg-slate-600"></div>
-
-            <div className={`flex flex-col items-center transition-colors ${roundWinners.p2 && revealed ? 'text-emerald-400' : ''}`}>
-              <div className="flex items-center gap-2 text-xs text-emerald-400 font-bold uppercase tracking-wider">
-                 <span className="hidden sm:inline">{getText('p2')}</span><span className="sm:hidden">P2</span> <User size={12} />
-              </div>
-              <span className="text-2xl font-mono font-bold text-white">
-                {scores.p2}
-                {revealed && roundWinners.p2 && <span className="text-sm text-green-400 ml-1 animate-pulse">+1</span>}
-              </span>
-            </div>
+            <div className={`flex flex-col items-center ${roundWinners.p2 && revealed ? 'text-emerald-400' : ''}`}><div className="flex items-center gap-2 text-xs text-emerald-400 font-bold uppercase tracking-wider"><User size={12} /> P2</div><span className="text-2xl font-mono font-bold text-white">{scores.p2}</span></div>
           </div>
-
-          <button 
-            onClick={() => setShowConfirmModal(true)}
-            className="p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-rose-400 transition"
-            title={getText('reset')}
-          >
-            <RefreshCw size={18} />
-          </button>
+          <button onClick={() => setShowConfirmModal(true)} className="p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-rose-400 transition" title={getText('reset')}><RefreshCw size={18} /></button>
         </div>
       </header>
 
-      {/* MAIN GAME AREA */}
+      {/* MAP VIEW */}
       <main className="flex-1 relative w-full h-full bg-slate-950 flex flex-col overflow-hidden">
-        
-        {/* MAP CONTAINER */}
-        <div 
-          ref={mapContainerRef}
-          className={`relative w-full h-full flex-1 flex items-center justify-center overflow-hidden 
-            ${mapInteractionDisabled ? 'cursor-default' : (transform.k > 1 ? 'cursor-move' : 'cursor-pointer')}`}
-          onMouseDown={onDragStart}
-          onMouseUp={(e) => {
-            onDragEnd(e);
-            if(isClickRef.current && !revealed && !mapInteractionDisabled) {
-              setRevealed(true);
-            }
-          }}
-          onTouchStart={onDragStart}
-        >
-          {/* ZOOM CONTROLS */}
-          <div 
-            className={`absolute top-4 left-4 z-30 flex flex-col gap-2 bg-slate-800/90 p-2 rounded-lg border border-slate-700 shadow-xl backdrop-blur-sm transition-opacity`}
-            onMouseDown={e => e.stopPropagation()}
-            onMouseUp={e => e.stopPropagation()}
-            onTouchStart={e => e.stopPropagation()}
-            onTouchEnd={e => e.stopPropagation()}
-          >
-            <button onClick={handleZoomIn} disabled={transform.k >= MAX_ZOOM} className={`p-2 rounded text-slate-200 transition ${transform.k >= MAX_ZOOM ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-600'}`}><ZoomIn size={20} /></button>
-            <button onClick={handleZoomOut} disabled={transform.k <= 1} className={`p-2 rounded text-slate-200 transition ${transform.k <= 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-600'}`}><ZoomOut size={20} /></button>
-            <button onClick={handleResetView} className={`p-2 rounded text-slate-200 transition hover:bg-slate-600`} title="Reset to Auto-Fit"><Maximize size={20} /></button>
-          </div>
+        <div ref={mapContainerRef} className="relative w-full h-full flex-1 flex items-center justify-center overflow-hidden cursor-move">
+          
+          <svg width={containerSize.width} height={containerSize.height} className="absolute inset-0 z-0">
+            {/* ATMOSPHERE GLOW */}
+            <defs>
+                <radialGradient id="atmosphere" cx="50%" cy="50%" r="50%">
+                    <stop offset="80%" stopColor="#1e293b" stopOpacity="1" />
+                    <stop offset="100%" stopColor="#0f172a" stopOpacity="1" />
+                </radialGradient>
+                <radialGradient id="ocean" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#1e293b" />
+                    <stop offset="100%" stopColor="#0f172a" />
+                </radialGradient>
+            </defs>
 
-          <svg 
-            viewBox={viewBoxData.str} 
-            className="absolute inset-0 w-full h-full z-0"
-            style={{ 
-              filter: 'drop-shadow(0 0 20px rgba(0,0,0,0.5))',
-            }}
-          >
-            <rect x={-5000} y={-5000} width={10000} height={10000} fill="#0f172a" opacity={0} />
-            
-            <g 
-              transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}
-              style={{ transition: 'transform 0.8s cubic-bezier(0.2, 0.8, 0.5, 1)' }}
-            >
-              <rect width={PROJECT_WIDTH} height={PROJECT_HEIGHT} fill="#0f172a" opacity={0} />
-              {mapPaths.map((country) => {
-                const isTarget = targetCountry && country.id === targetCountry.id;
-                return (
-                  <path
-                    key={country.id}
-                    d={country.path}
-                    fill={isTarget ? '#3b82f6' : '#334155'}
-                    stroke={isTarget ? '#60a5fa' : '#475569'} 
-                    strokeWidth={isTarget ? 2.5 : 1.0}
-                    className={`transition-colors duration-500 ease-in-out ${isTarget ? 'z-10' : 'z-0'}`}
-                    style={{ 
-                      opacity: isTarget ? 1 : 0.3,
-                      vectorEffect: 'non-scaling-stroke'
-                    }}
-                  />
-                );
-              })}
-            </g>
+            {/* THE GLOBE OCEAN SPHERE */}
+            <circle 
+                cx={containerSize.width / 2} 
+                cy={containerSize.height / 2} 
+                r={GLOBE_RADIUS * globeState.scale} 
+                fill="url(#ocean)"
+                stroke="#334155"
+                strokeWidth="1"
+            />
+
+            {/* COUNTRIES */}
+            {renderedPaths.map((country) => {
+              const isTarget = targetCountry && country.id === targetCountry.id;
+              // Dim countries further back for 3D effect
+              const depthOpacity = 0.3 + (country.z + 1) * 0.4; 
+              
+              return (
+                <path
+                  key={country.id}
+                  d={country.d}
+                  fill={isTarget ? '#3b82f6' : '#475569'}
+                  stroke={isTarget ? '#60a5fa' : '#334155'}
+                  strokeWidth={isTarget ? 1.5 : 0.5}
+                  style={{ 
+                    opacity: isTarget ? 1 : Math.max(0.1, Math.min(0.8, depthOpacity)), // Depth fog
+                    transition: 'fill 0.3s' 
+                  }}
+                  className={isTarget ? 'drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]' : ''}
+                />
+              );
+            })}
           </svg>
 
-          {/* Country/Capital Name Overlay */}
+          {/* OVERLAY LABEL */}
           <div className="absolute top-6 left-0 right-0 flex justify-center pointer-events-none z-10">
-            <div className={`
-              px-8 py-4 rounded-2xl border shadow-2xl flex flex-col items-center transition-all duration-500 transform text-center
-              ${revealed 
-                ? 'bg-slate-900/95 border-blue-500/50 scale-100 translate-y-0 opacity-100' 
-                : 'bg-slate-900/80 border-slate-700/50 translate-y-4 opacity-80 scale-95'
-              }
-            `}>
-              <p className="text-slate-400 text-xs uppercase tracking-widest mb-1 max-w-sm">
-                {revealed ? getText('answer') : overlayText}
-              </p>
-              {revealed ? (
-                <h2 className="text-3xl md:text-5xl font-bold text-white animate-in fade-in slide-in-from-bottom-2">
-                  {revealedAnswer}
-                </h2>
-              ) : (
-                 <div className="flex items-center gap-2 text-blue-300 font-semibold animate-pulse max-w-sm">
-                   {gameState === 'country_guess' ? <Eye size={20} /> : <MousePointer2 size={20} />}
-                   {targetCountry ? (gameState === 'country_guess' ? getText('tapHint') : getCountryName(targetCountry)) : '...'}
-                 </div>
-              )}
+            <div className={`px-8 py-4 rounded-2xl border shadow-2xl flex flex-col items-center transition-all duration-500 transform text-center ${revealed ? 'bg-slate-900/95 border-blue-500/50 scale-100 translate-y-0 opacity-100' : 'bg-slate-900/80 border-slate-700/50 translate-y-4 opacity-80 scale-95'}`}>
+              <p className="text-slate-400 text-xs uppercase tracking-widest mb-1 max-w-sm">{revealed ? getText('answer') : overlayText}</p>
+              {revealed ? <h2 className="text-3xl md:text-5xl font-bold text-white animate-in fade-in">{revealedAnswer}</h2> : <div className="flex items-center gap-2 text-blue-300 font-semibold animate-pulse max-w-sm">{gameState === 'country_guess' ? <Eye size={20} /> : <MousePointer2 size={20} />}{targetCountry ? (gameState === 'country_guess' ? getText('tapHint') : getCountryName(targetCountry)) : '...'}</div>}
             </div>
           </div>
         </div>
 
-        {/* CONTROLS FOOTER */}
+        {/* CONTROLS */}
         <div className="bg-slate-900 border-t border-slate-800 p-4 md:p-6 z-20">
           <div className="max-w-4xl mx-auto min-h-[80px] flex items-center justify-center">
-            
             {!revealed ? (
-              <button 
-                onClick={() => setRevealed(true)}
-                className="w-full max-w-md bg-blue-600 hover:bg-blue-500 text-white text-xl font-bold py-4 px-8 rounded-xl shadow-lg shadow-blue-900/30 transition transform active:scale-95 flex items-center justify-center gap-3"
-                disabled={!targetCountry} // Disable if no country is loaded yet
-              >
-                <Eye size={24} /> {getText('reveal')}
-              </button>
+              <button onClick={() => setRevealed(true)} className="w-full max-w-md bg-blue-600 hover:bg-blue-500 text-white text-xl font-bold py-4 px-8 rounded-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-3" disabled={!targetCountry}><Eye size={24} /> {getText('reveal')}</button>
             ) : (
               <div className="w-full flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-bottom-4 fade-in duration-300">
                 <div className="flex-1 flex items-center gap-4 w-full md:w-auto">
-                  <button 
-                    onClick={() => toggleRoundWinner('p1')}
-                    className={`
-                      flex-1 py-4 px-4 rounded-xl border-2 transition-all duration-200 flex items-center justify-center gap-3 font-bold group
-                      ${roundWinners.p1 
-                        ? 'bg-rose-600 border-rose-500 text-white shadow-[0_0_15px_rgba(225,29,72,0.5)]' 
-                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-rose-500/50 hover:text-rose-200'
-                      }
-                    `}
-                  >
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${roundWinners.p1 ? 'border-white bg-white/20' : 'border-slate-500'}`}>
-                      {roundWinners.p1 && <Check size={14} />}
-                    </div>
-                    {getText('p1Correct')}
-                  </button>
-
-                  <button 
-                    onClick={() => toggleRoundWinner('p2')}
-                    className={`
-                      flex-1 py-4 px-4 rounded-xl border-2 transition-all duration-200 flex items-center justify-center gap-3 font-bold group
-                      ${roundWinners.p2 
-                        ? 'bg-emerald-600 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)]' 
-                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-emerald-500/50 hover:text-emerald-200'
-                      }
-                    `}
-                  >
-                     <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${roundWinners.p2 ? 'border-white bg-white/20' : 'border-slate-500'}`}>
-                      {roundWinners.p2 && <Check size={14} />}
-                    </div>
-                    {getText('p2Correct')}
-                  </button>
+                  <button onClick={() => { setRoundWinners(p => ({...p, p1: !p.p1})); }} className={`flex-1 py-4 px-4 rounded-xl border-2 transition-all flex items-center justify-center gap-3 font-bold ${roundWinners.p1 ? 'bg-rose-600 border-rose-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}><div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${roundWinners.p1 ? 'border-white bg-white/20' : 'border-slate-500'}`}>{roundWinners.p1 && <Check size={14} />}</div>{getText('p1Correct')}</button>
+                  <button onClick={() => { setRoundWinners(p => ({...p, p2: !p.p2})); }} className={`flex-1 py-4 px-4 rounded-xl border-2 transition-all flex items-center justify-center gap-3 font-bold ${roundWinners.p2 ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}><div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${roundWinners.p2 ? 'border-white bg-white/20' : 'border-slate-500'}`}>{roundWinners.p2 && <Check size={14} />}</div>{getText('p2Correct')}</button>
                 </div>
-
-                <button 
-                  onClick={handleNextRound}
-                  className="w-full md:w-auto bg-slate-100 hover:bg-white text-slate-900 text-lg font-bold py-4 px-8 rounded-xl shadow-lg transition transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap"
-                >
-                  {availableCountries.length === 0 ? getText('rounds_complete') : `${getText('next')} ${availableCountries.length > 0 ? `(${availableCountries.length})` : ''}`} <ArrowRight size={20} />
-                </button>
+                <button onClick={() => { setScores(p => ({ p1: p.p1 + (roundWinners.p1?1:0), p2: p.p2 + (roundWinners.p2?1:0) })); pickRandomCountry(); }} className="w-full md:w-auto bg-slate-100 hover:bg-white text-slate-900 text-lg font-bold py-4 px-8 rounded-xl shadow-lg transition transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap">{getText('next')} <ArrowRight size={20} /></button>
               </div>
             )}
           </div>
