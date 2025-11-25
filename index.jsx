@@ -103,7 +103,6 @@ const getMercatorCoords = (lon, lat) => {
 
 /**
  * Calculates the bounding box (in Mercator projection coordinates) for a given GeoJSON feature.
- * This is crucial for determining optimal zoom.
  */
 const getCountryBoundingBox = (feature) => {
   if (!feature || !feature.geometry) return null;
@@ -317,7 +316,6 @@ export default function GeoGuesserDuel() {
   // Use the calculated transformation to smoothly transition the map view
   const animateToCountry = useCallback((feature) => {
     if (!feature) return;
-    // Applies zoom and pan for ANY game mode
     const newTransform = calculateZoomAndPan(feature);
     setTransform(newTransform);
   }, [calculateZoomAndPan]);
@@ -348,7 +346,6 @@ export default function GeoGuesserDuel() {
     if (!feature) return "Unknown Capital";
     const id = feature.id;
     const tData = translationData[id];
-    // Restcountries capital is an array, take the first one
     return tData?.capital?.[0] || "Unknown Capital";
   }
 
@@ -356,50 +353,43 @@ export default function GeoGuesserDuel() {
 
   const pickRandomCountry = useCallback(() => {
     if (availableCountries.length === 0) {
-      setGameState('game_over'); // All countries played!
+      setGameState('game_over'); 
       return;
     }
 
     const randomIndex = Math.floor(Math.random() * availableCountries.length);
     const newTarget = availableCountries[randomIndex];
 
-    // Remove the selected country from the available list
     setAvailableCountries(prev => prev.filter((_, index) => index !== randomIndex));
 
     setTargetCountry(newTarget);
     setRevealed(false);
     setRoundWinners({ p1: false, p2: false });
     
-    // Auto-zoom and pan on the new country for BOTH modes
     animateToCountry(newTarget);
 
   }, [availableCountries, animateToCountry]); 
 
-  // Function to initialize the list of countries for a new game
   const initializeGameCountries = useCallback((mode) => {
     const list = geoData.filter(f => {
-      // If capital mode, only pick countries with known capitals
       if (mode === 'capital_guess') {
         return getCapitalName(f) !== "Unknown Capital";
       }
-      return true; // Country guess mode uses all available countries
+      return true;
     });
     setAvailableCountries(list);
   }, [geoData]);
 
 
-  // Effect to handle the start of a new game or game over
   useEffect(() => {
     if (gameState === 'country_guess' || gameState === 'capital_guess') {
       if (geoData.length > 0 && availableCountries.length === 0) {
-        // This runs only on the initial start of a game mode
         initializeGameCountries(gameState);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameState, geoData]); 
 
-  // Effect to start the first round once available countries are set
   useEffect(() => {
     if ((gameState === 'country_guess' || gameState === 'capital_guess') && 
         geoData.length > 0 && 
@@ -420,27 +410,21 @@ export default function GeoGuesserDuel() {
   };
 
   const handleNextRound = () => {
-    // 1. Update scores based on the current round winners
     setScores(prev => ({
       p1: prev.p1 + (roundWinners.p1 ? 1 : 0),
       p2: prev.p2 + (roundWinners.p2 ? 1 : 0)
     }));
-    
-    // 2. Start the next round (which checks for game over)
     pickRandomCountry();
   };
 
-  // Start a game mode
   const startGame = (mode) => {
     setScores({ p1: 0, p2: 0 });
     setGameState(mode);
-    setTargetCountry(null); // Reset target
-    initializeGameCountries(mode); // Initialize the list for sampling
+    setTargetCountry(null); 
+    initializeGameCountries(mode); 
     setTransform({ k: 1, x: 0, y: 0 });
-    // The next round is started by the useEffect listening to availableCountries
   };
   
-  // Reset to menu
   const resetToMenu = () => {
     setGameState('menu');
     setScores({ p1: 0, p2: 0 });
@@ -465,7 +449,6 @@ export default function GeoGuesserDuel() {
       const k_old = p.k;
       let k_new = k_old * factor;
 
-      // Clamp zoom level
       k_new = Math.max(1, Math.min(MAX_ZOOM, k_new));
       if (k_new === k_old) return p;
 
@@ -476,7 +459,6 @@ export default function GeoGuesserDuel() {
       const sx = (centerX - p.x) / k_old;
       const sy = (centerY - p.y) / k_old;
 
-      // New translation to keep that point under the center after zoom
       const newX = centerX - sx * k_new;
       const newY = centerY - sy * k_new;
 
@@ -490,10 +472,8 @@ export default function GeoGuesserDuel() {
   const handleResetView = (e) => {
     e.stopPropagation();
     if (targetCountry) {
-      // Reset to the calculated auto-zoom view
       animateToCountry(targetCountry); 
     } else {
-      // Reset to default world view
       setTransform({ k: 1, x: 0, y: 0 });
     }
   };
@@ -507,9 +487,9 @@ export default function GeoGuesserDuel() {
   };
 
   const onDragStart = (e) => {
-    if (transform.k <= 1) return; // Only allow panning if zoomed
+    if (transform.k <= 1) return; 
     setIsDragging(true);
-    isClickRef.current = true; // Assume it's a click until movement
+    isClickRef.current = true; 
     const { clientX, clientY } = getClientCoords(e);
     dragRef.current = { 
       startX: clientX, 
@@ -530,7 +510,6 @@ export default function GeoGuesserDuel() {
     const dx = clientX - dragRef.current.startX;
     const dy = clientY - dragRef.current.startY;
     
-    // If movement exceeds a threshold, it's a drag, not a click
     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
         isClickRef.current = false;
     }
@@ -690,7 +669,6 @@ export default function GeoGuesserDuel() {
               <MapIcon className="text-blue-400" size={24} />
               <h1 className="text-xl font-bold tracking-wider">GEO<span className="text-blue-400">DUEL</span></h1>
             </div>
-            {/* Language selector remains */}
             <select 
               value={currentLang}
               onChange={(e) => setCurrentLang(e.target.value)}
@@ -752,7 +730,6 @@ export default function GeoGuesserDuel() {
 
           {/* Scoreboard and Rounds Remaining */}
           <div className="flex items-center gap-8 bg-slate-900/50 px-8 py-2 rounded-full border border-slate-700">
-             {/* Rounds Remaining Display */}
              <div className="flex flex-col items-center">
               <span className="text-xs font-bold uppercase tracking-wider text-blue-400">
                 <MapIcon size={12} className="inline-block mr-1" />
@@ -806,14 +783,11 @@ export default function GeoGuesserDuel() {
           onMouseDown={onDragStart}
           onMouseUp={(e) => {
             onDragEnd(e);
-            // Only trigger reveal if it was a quick click, not a drag
             if(isClickRef.current && !revealed && !mapInteractionDisabled) {
               setRevealed(true);
             }
           }}
           onTouchStart={onDragStart}
-          // The touch end listener also handles the click-like behavior
-          // TouchMove handles setting isClickRef.current = false
         >
           {/* ZOOM CONTROLS */}
           <div 
@@ -825,7 +799,6 @@ export default function GeoGuesserDuel() {
           >
             <button onClick={handleZoomIn} disabled={transform.k >= MAX_ZOOM} className={`p-2 rounded text-slate-200 transition ${transform.k >= MAX_ZOOM ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-600'}`}><ZoomIn size={20} /></button>
             <button onClick={handleZoomOut} disabled={transform.k <= 1} className={`p-2 rounded text-slate-200 transition ${transform.k <= 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-600'}`}><ZoomOut size={20} /></button>
-            {/* The Reset View button now returns to the calculated auto-zoom view */}
             <button onClick={handleResetView} className={`p-2 rounded text-slate-200 transition hover:bg-slate-600`} title="Reset to Auto-Fit"><Maximize size={20} /></button>
           </div>
 
@@ -838,7 +811,6 @@ export default function GeoGuesserDuel() {
           >
             <rect x={-5000} y={-5000} width={10000} height={10000} fill="#0f172a" opacity={0} />
             
-            {/* Apply transform to the main group, and use CSS transition for animation */}
             <g 
               transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}
               style={{ transition: 'transform 0.8s cubic-bezier(0.2, 0.8, 0.5, 1)' }}
