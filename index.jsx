@@ -77,15 +77,9 @@ const GLOBE_RADIUS = 250; // Base radius for the math
 const rad = (d) => d * (Math.PI / 180);
 
 // Rotate a point (lon, lat) by rotation angles (rotLon, rotLat)
-// This simulates rotating the globe so (rotLon, rotLat) becomes the center (0,0)
 const rotatePoint3D = (lon, lat, rotLon, rotLat) => {
   const lambda = rad(lon);
   const phi = rad(lat);
-  // rotLon determines the longitude at the center of the screen
-  // To center longitude L, we rotate by -L. 
-  // Here we pass "rotLon" as the rotation directly. 
-  // If we want +90E to be center, rotLon should be -90.
-  // The 'flyToCountry' logic calculates the target angle.
   const gamma = rad(rotLon); 
   const beta = rad(rotLat);  
 
@@ -313,8 +307,6 @@ export default function GeoGuesserDuel() {
 
     // Normalize rotation
     let currentLon = globeState.rotLon;
-    // FIX: use negative centerLon to rotate the point to the center (0)
-    // If point is at +90 (East), we rotate by -90 to bring it to 0.
     let targetLon = -centerLon; 
 
     const diff = targetLon - currentLon;
