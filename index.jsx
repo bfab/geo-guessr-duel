@@ -191,19 +191,74 @@ export default function GeoGuesserDuel() {
   // Used to prevent accidental reveal/tap when ending a drag
   const isClickRef = useRef(true); 
 
+  // --- RESPONSIVE MAP CONTAINER LOGIC ---
+  const mapContainerRef = useRef(null);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+    const updateSize = () => {
+      if (mapContainerRef.current) {
+        const { offsetWidth, offsetHeight } = mapContainerRef.current;
+        setContainerSize({ width: offsetWidth, height: offsetHeight });
+      }
+    };
+    
+    const resizeObserver = new ResizeObserver(updateSize);
+    resizeObserver.observe(mapContainerRef.current);
+    updateSize(); // Initial check
+    
+    return () => resizeObserver.disconnect();
+  }, [gameState]); // Re-bind if game state changes the DOM structure
+
+  // Calculate dynamic ViewBox to fill screen without stretching/distorting map paths
+  const viewBoxData = useMemo(() => {
+    if (containerSize.width === 0 || containerSize.height === 0) {
+      return { str: `0 0 ${PROJECT_WIDTH} ${PROJECT_HEIGHT}`, w: PROJECT_WIDTH, h: PROJECT_HEIGHT };
+    }
+
+    const containerAspect = containerSize.width / containerSize.height;
+    const mapAspect = PROJECT_WIDTH / PROJECT_HEIGHT;
+
+    let vbW, vbH, vbX, vbY;
+
+    if (containerAspect < mapAspect) {
+      // Container is taller/narrower (Vertical Screen/Mobile)
+      // Keep width fixed at 800, expand height
+      vbW = PROJECT_WIDTH;
+      vbH = PROJECT_WIDTH / containerAspect;
+      vbX = 0;
+      // Center the 500px map vertically within the new taller viewbox
+      vbY = (PROJECT_HEIGHT - vbH) / 2;
+    } else {
+      // Container is wider (Wide Screen)
+      // Keep height fixed at 500, expand width
+      vbH = PROJECT_HEIGHT;
+      vbW = PROJECT_HEIGHT * containerAspect;
+      vbY = 0;
+      // Center the 800px map horizontally
+      vbX = (PROJECT_WIDTH - vbW) / 2;
+    }
+
+    return { 
+      str: `${vbX} ${vbY} ${vbW} ${vbH}`, 
+      w: vbW, 
+      h: vbH,
+      x: vbX,
+      y: vbY
+    };
+  }, [containerSize]);
+
   // --- INITIAL LOAD ---
   useEffect(() => {
     const loadData = async () => {
       try {
-        // copied from 'https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson'
         const geoRes = await fetch('world.geojson');
         if (!geoRes.ok) throw new Error("Failed to load map shapes");
         const geoJson = await geoRes.json();
 
         let transMap = {};
         try {
-          // Fetch translations and capital information
-          // copied from 'https://restcountries.com/v3.1/all?fields=cca3,translations,name,capital'
           const transRes = await fetch('capitals.json');
           if (transRes.ok) {
             const transArr = await transRes.json();
@@ -238,27 +293,26 @@ export default function GeoGuesserDuel() {
     const width = bounds.maxX - bounds.minX;
     const height = bounds.maxY - bounds.minY;
 
-    // Calculate zoom required for the country's width to fill TARGET_FILL_PERCENTAGE (25%) of the map width
-    const zoomX = (PROJECT_WIDTH * TARGET_FILL_PERCENTAGE) / width;
-    // Calculate zoom required for the country's height to fill TARGET_FILL_PERCENTAGE (25%) of the map height
-    const zoomY = (PROJECT_HEIGHT * TARGET_FILL_PERCENTAGE) / height;
+    // Use viewBox dimensions for zoom calc so it feels proportional to screen size
+    const zoomX = (viewBoxData.w * TARGET_FILL_PERCENTAGE) / width;
+    const zoomY = (viewBoxData.h * TARGET_FILL_PERCENTAGE) / height;
 
-    // Choose the smaller zoom factor to ensure the whole country fits within the 25% target window.
     let k = Math.min(zoomX, zoomY);
-    
-    // Clamp zoom level: Min 1x (no zoom out past world view), Max MAX_ZOOM (8x)
     k = Math.max(1, Math.min(MAX_ZOOM, k));
     
-    // Calculate the center point of the country in Mercator coordinates
     const centerX = (bounds.minX + bounds.maxX) / 2;
     const centerY = (bounds.minY + bounds.maxY) / 2;
     
-    // Calculate the required translation (pan) to center the country
-    const newX = VIEWPORT_CENTER_X - centerX * k;
-    const newY = VIEWPORT_CENTER_Y - centerY * k;
+    // IMPORTANT: Center relative to the DYNAMIC ViewBox center, not fixed 800x500
+    // The center of the visible area is (vbX + vbW/2, vbY + vbH/2)
+    const viewCenterX = viewBoxData.x + (viewBoxData.w / 2);
+    const viewCenterY = viewBoxData.y + (viewBoxData.h / 2);
+
+    const newX = viewCenterX - centerX * k;
+    const newY = viewCenterY - centerY * k;
 
     return { k, x: newX, y: newY };
-  }, []);
+  }, [viewBoxData]);
 
   // Use the calculated transformation to smoothly transition the map view
   const animateToCountry = useCallback((feature) => {
@@ -415,11 +469,10 @@ export default function GeoGuesserDuel() {
       k_new = Math.max(1, Math.min(MAX_ZOOM, k_new));
       if (k_new === k_old) return p;
 
-      // Calculate the point to zoom around (center of the screen)
-      const centerX = VIEWPORT_CENTER_X; 
-      const centerY = VIEWPORT_CENTER_Y; 
+      // Center zoom around the dynamic view center
+      const centerX = viewBoxData.x + (viewBoxData.w / 2);
+      const centerY = viewBoxData.y + (viewBoxData.h / 2);
 
-      // Coordinates of the point under the cursor/center before zoom
       const sx = (centerX - p.x) / k_old;
       const sy = (centerY - p.y) / k_old;
 
@@ -747,7 +800,8 @@ export default function GeoGuesserDuel() {
         
         {/* MAP CONTAINER */}
         <div 
-          className={`flex-1 w-full relative flex items-center justify-center overflow-hidden 
+          ref={mapContainerRef}
+          className={`relative w-full h-full flex-1 flex items-center justify-center overflow-hidden 
             ${mapInteractionDisabled ? 'cursor-default' : (transform.k > 1 ? 'cursor-move' : 'cursor-pointer')}`}
           onMouseDown={onDragStart}
           onMouseUp={(e) => {
@@ -776,8 +830,8 @@ export default function GeoGuesserDuel() {
           </div>
 
           <svg 
-            viewBox={`0 0 ${PROJECT_WIDTH} ${PROJECT_HEIGHT}`} 
-            className="w-full h-full max-h-[75vh] object-contain z-0"
+            viewBox={viewBoxData.str} 
+            className="absolute inset-0 w-full h-full z-0"
             style={{ 
               filter: 'drop-shadow(0 0 20px rgba(0,0,0,0.5))',
             }}
