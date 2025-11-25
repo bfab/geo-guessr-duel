@@ -303,8 +303,7 @@ export default function GeoGuesserDuel() {
     const centerX = (bounds.minX + bounds.maxX) / 2;
     const centerY = (bounds.minY + bounds.maxY) / 2;
     
-    // IMPORTANT: Center relative to the DYNAMIC ViewBox center, not fixed 800x500
-    // The center of the visible area is (vbX + vbW/2, vbY + vbH/2)
+    // Center relative to the DYNAMIC ViewBox center
     const viewCenterX = viewBoxData.x + (viewBoxData.w / 2);
     const viewCenterY = viewBoxData.y + (viewBoxData.h / 2);
 
@@ -376,6 +375,7 @@ export default function GeoGuesserDuel() {
     setRevealed(false);
     setRoundWinners({ p1: false, p2: false });
     
+    // Note: animateToCountry is also triggered by the useEffect observing targetCountry/viewBoxData
     animateToCountry(newTarget);
 
   }, [availableCountries, animateToCountry]); 
