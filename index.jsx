@@ -212,8 +212,9 @@ export default function GeoGuesserDuel() {
 
   // Calculate dynamic ViewBox to fill screen without stretching/distorting map paths
   const viewBoxData = useMemo(() => {
+    // Default fallback to prevent divide by zero
     if (containerSize.width === 0 || containerSize.height === 0) {
-      return { str: `0 0 ${PROJECT_WIDTH} ${PROJECT_HEIGHT}`, w: PROJECT_WIDTH, h: PROJECT_HEIGHT };
+      return { str: `0 0 ${PROJECT_WIDTH} ${PROJECT_HEIGHT}`, w: PROJECT_WIDTH, h: PROJECT_HEIGHT, x: 0, y: 0 };
     }
 
     const containerAspect = containerSize.width / containerSize.height;
@@ -319,6 +320,15 @@ export default function GeoGuesserDuel() {
     const newTransform = calculateZoomAndPan(feature);
     setTransform(newTransform);
   }, [calculateZoomAndPan]);
+
+
+  // IMPORTANT: Re-calculate zoom if the screen size (viewBoxData) changes while looking at a country.
+  // This fixes the issue where initial load might use the wrong aspect ratio before ResizeObserver fires.
+  useEffect(() => {
+    if (targetCountry) {
+        animateToCountry(targetCountry);
+    }
+  }, [viewBoxData, targetCountry, animateToCountry]);
 
 
   // --- GAME LOGIC & TRANSLATIONS ---
