@@ -183,6 +183,13 @@ export default function GeoGuesserDuel() {
     startTime: 0, duration: 1500, active: false
   });
 
+    // --- STYLING CONSTANTS ---
+  const targetFill = '#3b82f6'; // Custom Brighter Gray/Blue
+  const targetStroke = '#60a5fa'; // Custom Darker/More visible border
+  const nonTargetFill = '#5f6d7d'; // Custom Brighter Gray/Blue
+  const nonTargetStroke = '#27313f'; // Custom Darker/More visible border
+  const nonTargetStrokeWidth = 1.0; // Increased stroke width
+
   // --- LANGUAGE DETECTION UTILITY ---
   function getInitialLanguage() {
     const browserLang = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
@@ -571,18 +578,23 @@ export default function GeoGuesserDuel() {
             {/* COUNTRIES */}
             {renderedPaths.map((country) => {
               const isTarget = targetCountry && country.id === targetCountry.id;
+              
               // Dim countries further back for 3D effect
+              // Depth ranges from -1 (far back) to 1 (center front)
               const depthOpacity = 0.3 + (country.z + 1) * 0.4; 
+              
+              // Increase minimum opacity to 0.5 for better visibility/saturation
+              const opacityValue = isTarget ? 1 : Math.max(0.5, Math.min(1, depthOpacity)); 
               
               return (
                 <path
                   key={country.id}
                   d={country.d}
-                  fill={isTarget ? '#3b82f6' : '#475569'}
-                  stroke={isTarget ? '#60a5fa' : '#334155'}
-                  strokeWidth={isTarget ? 1.5 : 0.5}
+                  fill={isTarget ? targetFill : nonTargetFill}
+                  stroke={isTarget ? targetStroke : nonTargetStroke}
+                  strokeWidth={isTarget ? 1.5 : nonTargetStrokeWidth}
                   style={{ 
-                    opacity: isTarget ? 1 : Math.max(0.1, Math.min(0.8, depthOpacity)), // Depth fog
+                    opacity: opacityValue, // New opacity logic
                     transition: 'fill 0.3s' 
                   }}
                   className={isTarget ? 'drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]' : ''}
