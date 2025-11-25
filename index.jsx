@@ -118,7 +118,6 @@ const project3D = (lon, lat, rotLon, rotLat, scale, width, height) => {
   const p = rotatePoint3D(lon, lat, rotLon, rotLat);
   
   // Back-face culling check (is the point behind the globe?)
-  // We allow a small buffer (-0.2) to prevent lines clipping too early at the edge
   if (p.z < -0.2) return null; 
 
   const x = (p.x * GLOBE_RADIUS * scale) + (width / 2);
@@ -402,16 +401,12 @@ export default function GeoGuesserDuel() {
   };
 
   // --- RENDER PREP ---
-  // Generate SVG Paths based on current 3D State
   const renderedPaths = useMemo(() => {
     const { rotLon, rotLat, scale } = globeState;
     const { width, height } = containerSize;
 
-    // Sort countries by Z-index of their centroid so front countries cover back countries
-    // This is a simple Painter's Algorithm. Perfect culling needs full polygon clipping,
-    // but centroid sorting + backface culling is usually enough for this visual style.
+    // Sort countries by Z-index of their centroid
     const sortedFeatures = [...geoData].map(feature => {
-        // Rotate centroid to see depth
         const c = feature.properties.bounds;
         const p3 = rotatePoint3D(c.centerLon, c.centerLat, rotLon, rotLat);
         return { feature, z: p3.z };
@@ -420,8 +415,7 @@ export default function GeoGuesserDuel() {
     const paths = [];
     
     sortedFeatures.forEach(({ feature, z }) => {
-        // If the centroid is deep behind the globe, skip entirely (Optimization)
-        if (z < -0.5) return;
+        if (z < -0.5) return; // Optimization: Skip far back countries
 
         let pathStr = "";
         
@@ -439,11 +433,6 @@ export default function GeoGuesserDuel() {
                     ringPath += (firstPoint ? "M" : "L") + `${p.x.toFixed(1)},${p.y.toFixed(1)} `;
                     firstPoint = false;
                 } else {
-                    // Handle line break if point wraps behind globe?
-                    // For simple visual, we just skip drawing to hidden points, creating a "horizon" clip
-                    // A proper implementation requires polygon clipping algorithms (Sutherland-Hodgman)
-                    // but that is too heavy for a single-file react component.
-                    // Instead, we just stop the line.
                     firstPoint = true; 
                 }
             }
