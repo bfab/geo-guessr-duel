@@ -12,7 +12,7 @@ const UI_TEXT = {
     confirm_yes: "Yes, End Game", confirm_no: "No, Keep Playing",
     game_over_title: "Game Over! Results", game_over_winner: "The Winner is", game_over_tie: "It's a Tie!", game_over_play_again: "Play Again",
     rounds_remaining: (count) => `${count} Rounds Left`, rounds_complete: "All Countries Played!",
-    zoom_in: "Zoom In", zoom_out: "Zoom Out", zoom_reset: "Reset View", // New Text
+    zoom_in: "Zoom In", zoom_out: "Zoom Out", zoom_reset: "Reset View", 
   },
   spa: { 
     menu_title: "Elige Modo de Juego", mode_country: "Adivina el País", mode_capital: "Adivina la Capital", 
@@ -23,47 +23,47 @@ const UI_TEXT = {
     confirm_yes: "Sí, Terminar", confirm_no: "No, Seguir Jugando",
     game_over_title: "¡Juego Terminado! Resultados", game_over_winner: "El Ganador es", game_over_tie: "¡Empate!", game_over_play_again: "Jugar de Nuevo",
     rounds_remaining: (count) => `${count} Rondas Restantes`, rounds_complete: "¡Todos los Países Jugados!",
-    zoom_in: "Acercar", zoom_out: "Alejar", zoom_reset: "Restablecer Vista", // New Text
+    zoom_in: "Acercar", zoom_out: "Alejar", zoom_reset: "Restablecer Vista", 
   },
   fra: { menu_title: "Choisir Mode", mode_country: "Deviner le Pays", mode_capital: "Deviner la Capitale", reveal: "Révéler", next: "Suivant", p1: "Joueur 1", p2: "Joueur 2", p1Correct: "J1 Correct", p2Correct: "J2 Correct", identify: "Identifier le Pays", answer: "Réponse", reset: "Finir Jeu", loading: "Chargement...", error: "Erreur de chargement", tapHint: "Toucher pour révéler", guess_country: "Quel Pays est Surligné?", guess_capital: "Quelle est la Capitale de", confirm_title: "Confirmation", confirm_msg: "Êtes-vous sûr de vouloir terminer le jeu et revenir au menu principal ? Vos scores seront perdus.", confirm_yes: "Oui", confirm_no: "Non",
     game_over_title: "Jeu Terminé! Résultats", game_over_winner: "Le Vainqueur est", game_over_tie: "Égalité !", game_over_play_again: "Rejouer",
     rounds_remaining: (count) => `${count} Tours Restants`, rounds_complete: "Tous les Pays Joués!",
-    zoom_in: "Zoomer", zoom_out: "Dézoomer", zoom_reset: "Réinitialiser Vue", // New Text
+    zoom_in: "Zoomer", zoom_out: "Dézoomer", zoom_reset: "Réinitialiser Vue", 
   },
   deu: { menu_title: "Spielmodus wählen", mode_country: "Land erraten", mode_capital: "Hauptstadt erraten", reveal: "Antwort zeigen", next: "Nächste Runde", p1: "Spieler 1", p2: "Spieler 2", p1Correct: "S1 Richtig", p2Correct: "S2 Richtig", identify: "Land identifizieren", answer: "Antwort", reset: "Spiel beenden", loading: "Karte wird geladen...", error: "Fehler beim Laden", tapHint: "Tippen zum Aufdecken", guess_country: "Welches Land ist markiert?", guess_capital: "Was ist die Hauptstadt von", confirm_title: "Spiel beenden", confirm_msg: "Möchten Sie das aktuelle Spiel wirklich beenden und zum Hauptmenü zurückkehren? Ihre Punktzahlen gehen verloren.", confirm_yes: "Ja", confirm_no: "Nein",
     game_over_title: "Spiel Vorbei! Ergebnisse", game_over_winner: "Der Gewinner ist", game_over_tie: "Unentschieden!", game_over_play_again: "Nochmal Spielen",
     rounds_remaining: (count) => `${count} Runden übrig`, rounds_complete: "Alle Länder gespielt!",
-    zoom_in: "Zoom In", zoom_out: "Zoom Out", zoom_reset: "Ansicht zurücksetzen", // New Text
+    zoom_in: "Zoom In", zoom_out: "Zoom Out", zoom_reset: "Ansicht zurücksetzen", 
   },
   ita: { menu_title: "Scegli Modalità", mode_country: "Indovina il Paese", mode_capital: "Indovina la Capitale", reveal: "Rivela", next: "Prossimo", p1: "Giocatore 1", p2: "Giocatore 2", p1Correct: "G1 Corretto", p2Correct: "G2 Corretto", identify: "Identifica il Paese", answer: "Risposta", reset: "Fine Gioco", loading: "Caricamento...", error: "Errore di caricamento", tapHint: "Tocca per rivelare", guess_country: "Quale Paese è Evidenziato?", guess_capital: "Qual è la Capitale di", confirm_title: "Conferma Fine", confirm_msg: "Sei sicuro di voler terminare il gioco attuale e tornare al menu principale? I tuoi punteggi andranno persi.", confirm_yes: "Sì", confirm_no: "No",
     game_over_title: "Gioco Finito! Risultati", game_over_winner: "Il Vincitore è", game_over_tie: "È un Pareggio!", game_over_play_again: "Gioca Ancora",
     rounds_remaining: (count) => `${count} Round Rimanenti`, rounds_complete: "Tutti i Paesi Giocati!",
-    zoom_in: "Zoom Avanti", zoom_out: "Zoom Indietro", zoom_reset: "Ripristina Vista", // New Text
+    zoom_in: "Zoom Avanti", zoom_out: "Zoom Indietro", zoom_reset: "Ripristina Vista", 
   },
   por: { menu_title: "Escolha o Modo", mode_country: "Adivinhe o País", mode_capital: "Adivinhe a Capital", reveal: "Revelar", next: "Próximo", p1: "Jogador 1", p2: "Jogador 2", p1Correct: "J1 Correto", p2Correct: "J2 Correto", identify: "Identifique o País", answer: "Resposta", reset: "Terminar Jogo", loading: "Carregando Mapa...", error: "Erro ao carregar", tapHint: "Toque para revelar", guess_country: "Qual País Está Destacado?", guess_capital: "Qual é a Capital de", confirm_title: "Confirmar Fim", confirm_msg: "Tem certeza de que deseja terminar o jogo atual e voltar ao menu principal? Suas pontuações serão perdidas.", confirm_yes: "Sim", confirm_no: "Não",
     game_over_title: "Fim do Jogo! Resultados", game_over_winner: "O Vencedor é", game_over_tie: "É um Empate!", game_over_play_again: "Jogar Novamente",
     rounds_remaining: (count) => `${count} Rodadas Restantes`, rounds_complete: "Todos os Países Jogados!",
-    zoom_in: "Aproximar", zoom_out: "Afastar", zoom_reset: "Redefinir Vista", // New Text
+    zoom_in: "Aproximar", zoom_out: "Afastar", zoom_reset: "Redefinir Vista", 
   },
   rus: { menu_title: "Выберите режим", mode_country: "Угадай Страну", mode_capital: "Угадай Столицу", reveal: "Показать ответ", next: "След. Раунд", p1: "Игрок 1", p2: "Игрок 2", p1Correct: "И1 Верно", p2Correct: "И2 Верно", identify: "Угадайте страну", answer: "Ответ", reset: "Завершить", loading: "Загрузка карты...", error: "Ошибка загрузки", tapHint: "Нажми чтобы открыть", guess_country: "Какая страна выделена?", guess_capital: "Какая столица у", confirm_title: "Подтверждение", confirm_msg: "Вы уверены, что хотите завершить текущую игру и вернуться в главное меню? Ваши очки будут потеряны.", confirm_yes: "Да", confirm_no: "Нет",
     game_over_title: "Игра Окончена! Результаты", game_over_winner: "Победитель", game_over_tie: "Ничья!", game_over_play_again: "Сыграть Снова",
     rounds_remaining: (count) => `${count} Раундов осталось`, rounds_complete: "Все страны сыграны!",
-    zoom_in: "Приблизить", zoom_out: "Отдалить", zoom_reset: "Сбросить вид", // New Text
+    zoom_in: "Приблизить", zoom_out: "Отдалить", zoom_reset: "Сбросить вид", 
   },
   jpn: { menu_title: "ゲームモード選択", mode_country: "国当て", mode_capital: "首都当て", reveal: "答えを表示", next: "次のラウンド", p1: "プレイヤー1", p2: "プレイヤー 2", p1Correct: "P1 正解", p2Correct: "P2 正解", identify: "ハイライトされた国は？", answer: "正解", reset: "ゲーム終了", loading: "読み込み中...", error: "読み込みエラー", tapHint: "タップして表示", guess_country: "ハイライトされた国はどこですか？", guess_capital: "の首都はどこですか？", confirm_title: "終了確認", confirm_msg: "現在のゲームを終了し、メインメニューに戻りますか？スコアは失われます。", confirm_yes: "はい、終了", confirm_no: "いいえ、続行",
     game_over_title: "ゲーム終了！結果", game_over_winner: "勝者は", game_over_tie: "引き分けです！", game_over_play_again: "もう一度プレイ",
     rounds_remaining: (count) => `残り${count}ラウンド`, rounds_complete: "全ての国をプレイしました！",
-    zoom_in: "ズームイン", zoom_out: "ズームアウト", zoom_reset: "ビューをリセット", // New Text
+    zoom_in: "ズームイン", zoom_out: "ズームアウト", zoom_reset: "ビューをリセット", 
   },
   kor: { menu_title: "게임 모드 선택", mode_country: "국가 맞히기", mode_capital: "수도 맞히기", reveal: "정답 보기", next: "다음 라운드", p1: "플레이어 1", p2: "플레이어 2", p1Correct: "P1 정답", p2Correct: "P2 정답", identify: "국가를 맞혀보세요", answer: "정답", reset: "게임 종료", loading: "로딩 중...", error: "로딩 오류", tapHint: "탭하여 정답보기", guess_country: "강조된 국가는 무엇입니까?", guess_capital: "의 수도는 어디입니까?", confirm_title: "종료 확인", confirm_msg: "현재 게임을 종료하고 메인 메뉴로 돌아가시겠습니까? 점수는 초기화됩니다.", confirm_yes: "예, 종료", confirm_no: "아니요, 계속",
     game_over_title: "게임 오버! 결과", game_over_winner: "승자는", game_over_tie: "무승부입니다!", game_over_play_again: "다시 플레이",
     rounds_remaining: (count) => `남은 라운드: ${count}`, rounds_complete: "모든 국가 완료!",
-    zoom_in: "확대", zoom_out: "축소", zoom_reset: "보기 초기화", // New Text
+    zoom_in: "확대", zoom_out: "축소", zoom_reset: "보기 초기화", 
   },
   zho: { menu_title: "选择游戏模式", mode_country: "猜国家", mode_capital: "猜首都", reveal: "显示答案", next: "下一轮", p1: "玩家 1", p2: "玩家 2", p1Correct: "P1 正确", p2Correct: "P2 正确", identify: "识别突出显示的国家", answer: "答案", reset: "结束游戏", loading: "加载地图中...", error: "加载错误", tapHint: "点击显示", guess_country: "哪个国家被突出显示？", guess_capital: "的首都是什么", confirm_title: "结束确认", confirm_msg: "您确定要结束当前游戏并返回主菜单吗？您的分数将会丢失。", confirm_yes: "是，结束", confirm_no: "否，继续",
     game_over_title: "游戏结束! 结果", game_over_winner: "获胜者是", game_over_tie: "平局！", game_over_play_again: "再玩一次",
     rounds_remaining: (count) => `剩余 ${count} 轮`, rounds_complete: "所有国家已玩完!",
-    zoom_in: "放大", zoom_out: "缩小", zoom_reset: "重置视图", // New Text
+    zoom_in: "放大", zoom_out: "缩小", zoom_reset: "重置视图", 
   },
 };
 
@@ -295,7 +295,7 @@ export default function GeoGuesserDuel() {
     }
   }, []);
 
-  // --- NEW: Helper function to calculate the ideal zoom scale for a country ---
+  // --- Helper function to calculate the ideal zoom scale for a country ---
   const calculateTargetScale = useCallback((feature) => {
     if (!feature) return DEFAULT_SCALE;
     
@@ -354,7 +354,7 @@ export default function GeoGuesserDuel() {
 
   }, [globeState, animate, calculateTargetScale]);
   
-  // --- NEW ZOOM CONTROLS ---
+  // --- ZOOM CONTROLS ---
   const adjustZoom = useCallback((direction) => {
     const currentScale = animationRef.current.active 
         ? animationRef.current.targetScale 
@@ -385,7 +385,7 @@ export default function GeoGuesserDuel() {
   const zoomIn = useCallback(() => adjustZoom(1), [adjustZoom]);
   const zoomOut = useCallback(() => adjustZoom(-1), [adjustZoom]);
   
-  // --- UPDATED: Reset zoom function to keep orientation and use optimal country scale ---
+  // --- Reset zoom function to keep orientation and use optimal country scale ---
   const resetZoom = useCallback(() => {
     // 1. Determine the target scale (optimal scale for the current country, or default if none)
     const targetScale = calculateTargetScale(targetCountry); 
@@ -681,7 +681,7 @@ export default function GeoGuesserDuel() {
             </div>
           </div>
           
-          {/* NEW ZOOM CONTROLS */}
+          {/* ZOOM CONTROLS */}
           <div className="absolute bottom-6 right-6 z-10 flex flex-col gap-2 p-2 bg-slate-800/80 rounded-xl shadow-lg border border-slate-700">
             <button 
               onClick={zoomIn} 
