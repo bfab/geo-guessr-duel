@@ -130,23 +130,58 @@ const project3D = (lon, lat, rotLon, rotLat, scale, width, height) => {
   return { x, y, z: p.z };
 };
 
+// --- UPDATED: Get Bounds with Date Line (180th Meridian) Handling ---
 const getBounds = (feature) => {
-    let minLon = 180, maxLon = -180, minLat = 90, maxLat = -90;
-    const traverse = (coords) => {
-        if (typeof coords[0] === 'number') {
-            minLon = Math.min(minLon, coords[0]);
-            maxLon = Math.max(maxLon, coords[0]);
-            minLat = Math.min(minLat, coords[1]);
-            maxLat = Math.max(maxLat, coords[1]);
+    // 1. Flatten all coordinates
+    const coords = [];
+    const traverse = (arr) => {
+        if (typeof arr[0] === 'number') {
+            coords.push(arr);
         } else {
-            coords.forEach(traverse);
+            arr.forEach(traverse);
         }
     }
     traverse(feature.geometry.coordinates);
+
+    // 2. Initial pass to find min/max
+    let minLat = 90, maxLat = -90;
+    let minLon = 180, maxLon = -180;
+
+    coords.forEach(([lon, lat]) => {
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+        if (lon < minLon) minLon = lon;
+        if (lon > maxLon) maxLon = lon;
+    });
+
+    let spanLon = maxLon - minLon;
+    let centerLon = (minLon + maxLon) / 2;
+
+    // 3. Check for Date Line crossing
+    // If a single country spans > 180 degrees, it usually means it crosses the date line
+    // (e.g. Fiji, Russia, USA/Alaska). Logic: -179 and 179 are adjacent, not far apart.
+    if (spanLon > 180) {
+        // Recalculate with negative longitudes shifted by +360
+        let minLonAdj = 360 + 180; 
+        let maxLonAdj = -360 - 180;
+
+        coords.forEach(([lon]) => {
+            const adjLon = lon < 0 ? lon + 360 : lon;
+            if (adjLon < minLonAdj) minLonAdj = adjLon;
+            if (adjLon > maxLonAdj) maxLonAdj = adjLon;
+        });
+
+        spanLon = maxLonAdj - minLonAdj;
+        centerLon = (minLonAdj + maxLonAdj) / 2;
+        
+        // Normalize center back to standard -180 to 180 range
+        if (centerLon > 180) centerLon -= 360;
+    }
+
     return { 
-        centerLon: (minLon + maxLon) / 2, 
+        centerLon, 
         centerLat: (minLat + maxLat) / 2,
-        spanLon: maxLon - minLon,
+        spanLon,
         spanLat: maxLat - minLat
     };
 }
