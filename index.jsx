@@ -208,6 +208,10 @@ export default function GeoGuesserDuel() {
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
   const mapContainerRef = useRef(null);
   
+  // --- UI MEASUREMENTS ---
+  const controlsRef = useRef(null);
+  const [controlsHeight, setControlsHeight] = useState(100);
+
   // Current Camera State (Animated)
   const [globeState, setGlobeState] = useState({
     rotLon: 0,
@@ -296,6 +300,18 @@ export default function GeoGuesserDuel() {
     observer.observe(mapContainerRef.current);
     return () => observer.disconnect();
   }, [gameState]);
+
+  // --- CONTROLS HEIGHT OBSERVER ---
+  useEffect(() => {
+    if (!controlsRef.current) return;
+    const observer = new ResizeObserver(() => {
+        if (controlsRef.current) {
+            setControlsHeight(controlsRef.current.offsetHeight);
+        }
+    });
+    observer.observe(controlsRef.current);
+    return () => observer.disconnect();
+  }, [revealed]); // Trigger when revealed state changes as content size changes
 
 
   // --- ANIMATION LOOP ---
@@ -627,136 +643,136 @@ export default function GeoGuesserDuel() {
   
   if (gameState === 'game_over') return <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans overflow-hidden"><header className="bg-slate-800 border-b border-slate-700 px-4 py-3 shadow-md z-20"><div className="max-w-7xl mx-auto flex justify-between items-center gap-4"><div className="flex items-center gap-2"><MapIcon className="text-blue-400" size={24} /><h1 className="text-xl font-bold tracking-wider">GEO<span className="text-blue-400">DUEL</span></h1></div></div></header><GameOverModal /></div>;
 
- // --- GAME RENDER ---
- const revealedAnswer = gameState === 'country_guess' ? getCountryName(targetCountry) : getCapitalName(targetCountry);
- const overlayText = gameState === 'country_guess' ? getText('guess_country') : `${getText('guess_capital')} ${getCountryName(targetCountry)}?`;
-
- return (
-   <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans overflow-hidden select-none">
-     {showConfirmModal && <ConfirmationModal />}
-     
-     {/* HEADER */}
-     <header className="bg-slate-800 border-b border-slate-700 px-4 py-3 shadow-md z-30 relative">
-       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-         <div className="flex items-center justify-between w-full sm:w-auto gap-4">
-           <div className="flex items-center gap-2"><MapIcon className="text-blue-400" size={24} /><h1 className="text-xl font-bold tracking-wider hidden md:block">GEO<span className="text-blue-400">DUEL</span></h1><span className="text-xs font-semibold uppercase tracking-wider bg-slate-900/50 text-blue-300 px-2 py-1 rounded-full ml-2">{gameState === 'country_guess' ? getText('mode_country') : getText('mode_capital')}</span></div>
-           <select value={currentLang} onChange={(e) => setCurrentLang(e.target.value)} className="bg-slate-900 text-slate-300 text-sm border border-slate-600 rounded px-2 py-1 focus:outline-none focus:border-blue-500">{LANGUAGES.map(lang => (<option key={lang.code} value={lang.code}>{lang.label}</option>))}</select>
-         </div>
-         <div className="flex items-center gap-8 bg-slate-900/50 px-8 py-2 rounded-full border border-slate-700">
-            <div className="flex flex-col items-center"><span className="text-xs font-bold uppercase tracking-wider text-blue-400"><MapIcon size={12} className="inline-block mr-1" />{availableCountries.length > 0 ? getText('rounds_remaining', availableCountries.length) : 'Final Round!'}</span></div>
-           <div className="h-8 w-px bg-slate-600 hidden sm:block"></div>
-           <div className={`flex flex-col items-center ${roundWinners.p1 && revealed ? 'text-rose-400' : ''}`}><div className="flex items-center gap-2 text-xs text-rose-400 font-bold uppercase tracking-wider"><User size={12} /> P1</div><span className="text-2xl font-mono font-bold text-white">{scores.p1}</span></div>
-           <div className="h-8 w-px bg-slate-600"></div>
-           <div className={`flex flex-col items-center ${roundWinners.p2 && revealed ? 'text-emerald-400' : ''}`}><div className="flex items-center gap-2 text-xs text-emerald-400 font-bold uppercase tracking-wider"><User size={12} /> P2</div><span className="text-2xl font-mono font-bold text-white">{scores.p2}</span></div>
-         </div>
-         <button onClick={() => setShowConfirmModal(true)} className="p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-rose-400 transition" title={getText('reset')}><RefreshCw size={18} /></button>
-       </div>
-     </header>
-
-     {/* MAIN CONTENT - Changed from flex-col to relative block to support overlay */}
-     <main className="flex-1 relative w-full h-full bg-slate-950 overflow-hidden">
-       
-       {/* MAP CONTAINER - Changed to absolute inset-0 to ignore control panel height */}
-       <div ref={mapContainerRef} className="absolute inset-0 flex items-center justify-center overflow-hidden cursor-move z-0">
-         
-         <svg width={containerSize.width} height={containerSize.height} className="absolute inset-0 z-0">
-           {/* ATMOSPHERE GLOW */}
-           <defs>
-               <radialGradient id="atmosphere" cx="50%" cy="50%" r="50%">
-                   <stop offset="80%" stopColor="#1e293b" stopOpacity="1" />
-                   <stop offset="100%" stopColor="#0f172a" stopOpacity="1" />
-               </radialGradient>
-               <radialGradient id="ocean" cx="50%" cy="50%" r="50%">
-                   <stop offset="0%" stopColor="#1e293b" />
-                   <stop offset="100%" stopColor="#0f172a" />
-               </radialGradient>
-           </defs>
-
-           {/* THE GLOBE OCEAN SPHERE */}
-           <circle 
-               cx={containerSize.width / 2} 
-               cy={containerSize.height / 2} 
-               r={GLOBE_RADIUS * globeState.scale} 
-               fill="url(#ocean)"
-               stroke="#334155"
-               strokeWidth="1"
-           />
-
-           {/* COUNTRIES */}
-           {renderedPaths.map((country) => {
-             const isTarget = targetCountry && country.id === targetCountry.id;
-             const depthOpacity = 0.3 + (country.z + 1) * 0.4; 
-             const opacityValue = isTarget ? 1 : Math.max(0.5, Math.min(1, depthOpacity)); 
-             
-             return (
-               <path
-                 key={country.id}
-                 d={country.d}
-                 fill={isTarget ? targetFill : nonTargetFill}
-                 stroke={isTarget ? targetStroke : nonTargetStroke}
-                 strokeWidth={isTarget ? 1.5 : nonTargetStrokeWidth}
-                 style={{ 
-                   opacity: opacityValue,
-                   transition: 'fill 0.3s' 
-                 }}
-                 className={isTarget ? 'drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]' : ''}
-               />
-             );
-           })}
-         </svg>
-
-         {/* OVERLAY LABEL */}
-         <div className="absolute top-6 left-0 right-0 flex justify-center pointer-events-none z-10">
-           <div className={`px-8 py-4 rounded-2xl border shadow-2xl flex flex-col items-center transition-all duration-500 transform text-center ${revealed ? 'bg-slate-900/95 border-blue-500/50 scale-100 translate-y-0 opacity-100' : 'bg-slate-900/80 border-slate-700/50 translate-y-4 opacity-80 scale-95'}`}>
-             <p className="text-slate-400 text-xs uppercase tracking-widest mb-1 max-w-sm">{revealed ? getText('answer') : overlayText}</p>
-             {revealed ? <h2 className="text-3xl md:text-5xl font-bold text-white animate-in fade-in">{revealedAnswer}</h2> : <div className="flex items-center gap-2 text-blue-300 font-semibold animate-pulse max-w-sm">{gameState === 'country_guess' ? <Eye size={20} /> : <MousePointer2 size={20} />}{targetCountry ? (gameState === 'country_guess' ? getText('tapHint') : getCountryName(targetCountry)) : '...'}</div>}
-           </div>
-         </div>
-         
-         {/* ZOOM CONTROLS - Moved to Right Center to avoid overlapping with bottom controls */}
-         <div className="absolute top-1/2 -translate-y-1/2 right-4 z-10 flex flex-col gap-2 p-2 bg-slate-800/80 rounded-xl shadow-lg border border-slate-700 backdrop-blur-sm">
-           <button 
-             onClick={zoomIn} 
-             disabled={globeState.scale >= MAX_SCALE}
-             className="p-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition" 
-             title={getText('zoom_in')}>
-             <ZoomIn size={20} />
-           </button>
-           <button 
-             onClick={zoomOut} 
-             disabled={globeState.scale <= MIN_SCALE}
-             className="p-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition" 
-             title={getText('zoom_out')}>
-             <ZoomOut size={20} />
-           </button>
-           <div className="h-px bg-slate-600 w-full"></div>
-           <button 
-             onClick={resetZoom} 
-             className="p-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-rose-400 transition" 
-             title={getText('zoom_reset')}>
-             <Maximize size={20} className="rotate-45" />
-           </button>
-         </div>
-         
-       </div>
-
-       {/* CONTROLS - Changed to absolute positioning at bottom, semi-transparent */}
-       <div className="absolute bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-800 p-4 md:p-6 z-20 backdrop-blur-md transition-all duration-300">
-         <div className="max-w-4xl mx-auto min-h-[80px] flex items-center justify-center">
-           {!revealed ? (
-             <button onClick={() => setRevealed(true)} className="w-full max-w-md bg-blue-600 hover:bg-blue-500 text-white text-xl font-bold py-4 px-8 rounded-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-3" disabled={!targetCountry}><Eye size={24} /> {getText('reveal')}</button>
-           ) : (
-             <div className="w-full flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-bottom-4 fade-in duration-300">
-               <div className="flex-1 flex items-center gap-4 w-full md:w-auto">
-                 <button onClick={() => { setRoundWinners(p => ({...p, p1: !p.p1})); }} className={`flex-1 py-4 px-4 rounded-xl border-2 transition-all flex items-center justify-center gap-3 font-bold ${roundWinners.p1 ? 'bg-rose-600 border-rose-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}><div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${roundWinners.p1 ? 'border-white bg-white/20' : 'border-slate-500'}`}>{roundWinners.p1 && <Check size={14} />}</div>{getText('p1Correct')}</button>
-                 <button onClick={() => { setRoundWinners(p => ({...p, p2: !p.p2})); }} className={`flex-1 py-4 px-4 rounded-xl border-2 transition-all flex items-center justify-center gap-3 font-bold ${roundWinners.p2 ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}><div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${roundWinners.p2 ? 'border-white bg-white/20' : 'border-slate-500'}`}>{roundWinners.p2 && <Check size={14} />}</div>{getText('p2Correct')}</button>
-               </div>
-               <button onClick={() => { setScores(p => ({ p1: p.p1 + (roundWinners.p1?1:0), p2: p.p2 + (roundWinners.p2?1:0) })); pickRandomCountry(); }} className="w-full md:w-auto bg-slate-100 hover:bg-white text-slate-900 text-lg font-bold py-4 px-8 rounded-xl shadow-lg transition transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap">{getText('next')} <ArrowRight size={20} /></button>
-             </div>
-           )}
-         </div>
-       </div>
-     </main>
-   </div>
- );
+  // --- GAME RENDER ---
+  const revealedAnswer = gameState === 'country_guess' ? getCountryName(targetCountry) : getCapitalName(targetCountry);
+  const overlayText = gameState === 'country_guess' ? getText('guess_country') : `${getText('guess_capital')} ${getCountryName(targetCountry)}?`;
+  
+  return (
+  <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans overflow-hidden select-none">
+      {showConfirmModal && <ConfirmationModal />}
+      
+      {/* HEADER */}
+      <header className="bg-slate-800 border-b border-slate-700 px-4 py-3 shadow-md z-30 relative">
+      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="flex items-center justify-between w-full sm:w-auto gap-4">
+          <div className="flex items-center gap-2"><MapIcon className="text-blue-400" size={24} /><h1 className="text-xl font-bold tracking-wider hidden md:block">GEO<span className="text-blue-400">DUEL</span></h1><span className="text-xs font-semibold uppercase tracking-wider bg-slate-900/50 text-blue-300 px-2 py-1 rounded-full ml-2">{gameState === 'country_guess' ? getText('mode_country') : getText('mode_capital')}</span></div>
+          <select value={currentLang} onChange={(e) => setCurrentLang(e.target.value)} className="bg-slate-900 text-slate-300 text-sm border border-slate-600 rounded px-2 py-1 focus:outline-none focus:border-blue-500">{LANGUAGES.map(lang => (<option key={lang.code} value={lang.code}>{lang.label}</option>))}</select>
+          </div>
+          <div className="flex items-center gap-8 bg-slate-900/50 px-8 py-2 rounded-full border border-slate-700">
+          <div className="flex flex-col items-center"><span className="text-xs font-bold uppercase tracking-wider text-blue-400"><MapIcon size={12} className="inline-block mr-1" />{availableCountries.length > 0 ? getText('rounds_remaining', availableCountries.length) : 'Final Round!'}</span></div>
+          <div className="h-8 w-px bg-slate-600 hidden sm:block"></div>
+          <div className={`flex flex-col items-center ${roundWinners.p1 && revealed ? 'text-rose-400' : ''}`}><div className="flex items-center gap-2 text-xs text-rose-400 font-bold uppercase tracking-wider"><User size={12} /> P1</div><span className="text-2xl font-mono font-bold text-white">{scores.p1}</span></div>
+          <div className="h-8 w-px bg-slate-600"></div>
+          <div className={`flex flex-col items-center ${roundWinners.p2 && revealed ? 'text-emerald-400' : ''}`}><div className="flex items-center gap-2 text-xs text-emerald-400 font-bold uppercase tracking-wider"><User size={12} /> P2</div><span className="text-2xl font-mono font-bold text-white">{scores.p2}</span></div>
+          </div>
+          <button onClick={() => setShowConfirmModal(true)} className="p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-rose-400 transition" title={getText('reset')}><RefreshCw size={18} /></button>
+      </div>
+      </header>
+  
+      {/* MAIN CONTENT */}
+      <main className="flex-1 relative w-full h-full bg-slate-950 overflow-hidden">
+      
+      {/* MAP CONTAINER */}
+      <div ref={mapContainerRef} className="absolute inset-0 flex items-center justify-center overflow-hidden cursor-move z-0">
+          
+          <svg width={containerSize.width} height={containerSize.height} className="absolute inset-0 z-0">
+          <defs>
+              <radialGradient id="atmosphere" cx="50%" cy="50%" r="50%">
+                  <stop offset="80%" stopColor="#1e293b" stopOpacity="1" />
+                  <stop offset="100%" stopColor="#0f172a" stopOpacity="1" />
+              </radialGradient>
+              <radialGradient id="ocean" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor="#1e293b" />
+                  <stop offset="100%" stopColor="#0f172a" />
+              </radialGradient>
+          </defs>
+  
+          <circle 
+              cx={containerSize.width / 2} 
+              cy={containerSize.height / 2} 
+              r={GLOBE_RADIUS * globeState.scale} 
+              fill="url(#ocean)"
+              stroke="#334155"
+              strokeWidth="1"
+          />
+  
+          {renderedPaths.map((country) => {
+              const isTarget = targetCountry && country.id === targetCountry.id;
+              const depthOpacity = 0.3 + (country.z + 1) * 0.4; 
+              const opacityValue = isTarget ? 1 : Math.max(0.5, Math.min(1, depthOpacity)); 
+              
+              return (
+              <path
+                  key={country.id}
+                  d={country.d}
+                  fill={isTarget ? targetFill : nonTargetFill}
+                  stroke={isTarget ? targetStroke : nonTargetStroke}
+                  strokeWidth={isTarget ? 1.5 : nonTargetStrokeWidth}
+                  style={{ 
+                  opacity: opacityValue,
+                  transition: 'fill 0.3s' 
+                  }}
+                  className={isTarget ? 'drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]' : ''}
+              />
+              );
+          })}
+          </svg>
+  
+          {/* OVERLAY LABEL */}
+          <div className="absolute top-6 left-0 right-0 flex justify-center pointer-events-none z-10">
+          <div className={`px-8 py-4 rounded-2xl border shadow-2xl flex flex-col items-center transition-all duration-500 transform text-center ${revealed ? 'bg-slate-900/95 border-blue-500/50 scale-100 translate-y-0 opacity-100' : 'bg-slate-900/80 border-slate-700/50 translate-y-4 opacity-80 scale-95'}`}>
+              <p className="text-slate-400 text-xs uppercase tracking-widest mb-1 max-w-sm">{revealed ? getText('answer') : overlayText}</p>
+              {revealed ? <h2 className="text-3xl md:text-5xl font-bold text-white animate-in fade-in">{revealedAnswer}</h2> : <div className="flex items-center gap-2 text-blue-300 font-semibold animate-pulse max-w-sm">{gameState === 'country_guess' ? <Eye size={20} /> : <MousePointer2 size={20} />}{targetCountry ? (gameState === 'country_guess' ? getText('tapHint') : getCountryName(targetCountry)) : '...'}</div>}
+          </div>
+          </div>
+          
+          {/* ZOOM CONTROLS - UPDATED: Dynamic bottom calculation based on controls height */}
+          <div 
+            className="absolute right-4 z-10 flex flex-col gap-2 p-2 bg-slate-800/80 rounded-xl shadow-lg border border-slate-700 backdrop-blur-sm transition-all duration-300"
+            style={{ bottom: `${controlsHeight + 16}px` }}
+            >
+          <button 
+              onClick={zoomIn} 
+              disabled={globeState.scale >= MAX_SCALE}
+              className="p-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition" 
+              title={getText('zoom_in')}>
+              <ZoomIn size={20} />
+          </button>
+          <button 
+              onClick={zoomOut} 
+              disabled={globeState.scale <= MIN_SCALE}
+              className="p-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition" 
+              title={getText('zoom_out')}>
+              <ZoomOut size={20} />
+          </button>
+          <div className="h-px bg-slate-600 w-full"></div>
+          <button 
+              onClick={resetZoom} 
+              className="p-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-rose-400 transition" 
+              title={getText('zoom_reset')}>
+              <Maximize size={20} className="rotate-45" />
+          </button>
+          </div>
+          
+      </div>
+  
+      {/* CONTROLS - UPDATED: Added ref to measure height */}
+      <div ref={controlsRef} className="absolute bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-800 p-4 md:p-6 z-20 backdrop-blur-md transition-all duration-300">
+          <div className="max-w-4xl mx-auto min-h-[80px] flex items-center justify-center">
+          {!revealed ? (
+              <button onClick={() => setRevealed(true)} className="w-full max-w-md bg-blue-600 hover:bg-blue-500 text-white text-xl font-bold py-4 px-8 rounded-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-3" disabled={!targetCountry}><Eye size={24} /> {getText('reveal')}</button>
+          ) : (
+              <div className="w-full flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-bottom-4 fade-in duration-300">
+              <div className="flex-1 flex items-center gap-4 w-full md:w-auto">
+                  <button onClick={() => { setRoundWinners(p => ({...p, p1: !p.p1})); }} className={`flex-1 py-4 px-4 rounded-xl border-2 transition-all flex items-center justify-center gap-3 font-bold ${roundWinners.p1 ? 'bg-rose-600 border-rose-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}><div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${roundWinners.p1 ? 'border-white bg-white/20' : 'border-slate-500'}`}>{roundWinners.p1 && <Check size={14} />}</div>{getText('p1Correct')}</button>
+                  <button onClick={() => { setRoundWinners(p => ({...p, p2: !p.p2})); }} className={`flex-1 py-4 px-4 rounded-xl border-2 transition-all flex items-center justify-center gap-3 font-bold ${roundWinners.p2 ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'}`}><div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${roundWinners.p2 ? 'border-white bg-white/20' : 'border-slate-500'}`}>{roundWinners.p2 && <Check size={14} />}</div>{getText('p2Correct')}</button>
+              </div>
+              <button onClick={() => { setScores(p => ({ p1: p.p1 + (roundWinners.p1?1:0), p2: p.p2 + (roundWinners.p2?1:0) })); pickRandomCountry(); }} className="w-full md:w-auto bg-slate-100 hover:bg-white text-slate-900 text-lg font-bold py-4 px-8 rounded-xl shadow-lg transition transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap">{getText('next')} <ArrowRight size={20} /></button>
+              </div>
+          )}
+          </div>
+      </div>
+      </main>
+  </div>
+  );
 }
