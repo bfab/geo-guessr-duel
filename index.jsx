@@ -311,7 +311,7 @@ export default function GeoGuesserDuel() {
     });
     observer.observe(controlsRef.current);
     return () => observer.disconnect();
-  }, [revealed]); // Trigger when revealed state changes as content size changes
+  }, [revealed]); 
 
 
   // --- ANIMATION LOOP ---
@@ -731,7 +731,7 @@ export default function GeoGuesserDuel() {
           </div>
           </div>
           
-          {/* ZOOM CONTROLS - UPDATED: Dynamic bottom calculation based on controls height */}
+          {/* ZOOM CONTROLS - Fixed click propagation */}
           <div 
             className="absolute right-4 z-10 flex flex-col gap-2 p-2 bg-slate-800/80 rounded-xl shadow-lg border border-slate-700 backdrop-blur-sm transition-all duration-300"
             style={{ bottom: `${controlsHeight + 16}px` }}
@@ -762,7 +762,7 @@ export default function GeoGuesserDuel() {
           
       </div>
   
-      {/* CONTROLS - UPDATED: Added ref to measure height */}
+      {/* CONTROLS */}
       <div ref={controlsRef} className="absolute bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-800 p-4 md:p-6 z-20 backdrop-blur-md transition-all duration-300">
           <div className="max-w-4xl mx-auto min-h-[80px] flex items-center justify-center">
           {!revealed ? (
