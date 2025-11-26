@@ -673,7 +673,12 @@ export default function GeoGuesserDuel() {
       <main className="flex-1 relative w-full h-full bg-slate-950 overflow-hidden">
       
       {/* MAP CONTAINER */}
-      <div ref={mapContainerRef} className="absolute inset-0 flex items-center justify-center overflow-hidden cursor-move z-0">
+      <div 
+        ref={mapContainerRef} 
+        onClick={() => { if(!revealed && targetCountry) setRevealed(true); }}
+        className={`absolute inset-0 flex items-center justify-center overflow-hidden z-0 ${!revealed ? 'cursor-pointer' : 'cursor-default'}`}
+        title={!revealed ? getText('tapHint') : ''}
+        >
           
           <svg width={containerSize.width} height={containerSize.height} className="absolute inset-0 z-0">
           <defs>
@@ -730,6 +735,7 @@ export default function GeoGuesserDuel() {
           <div 
             className="absolute right-4 z-10 flex flex-col gap-2 p-2 bg-slate-800/80 rounded-xl shadow-lg border border-slate-700 backdrop-blur-sm transition-all duration-300"
             style={{ bottom: `${controlsHeight + 16}px` }}
+            onClick={(e) => e.stopPropagation()} 
             >
           <button 
               onClick={zoomIn} 
