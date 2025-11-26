@@ -232,8 +232,8 @@ export default function GeoGuesserDuel() {
   // --- CAMERA CONSTANTS ---
   const DEFAULT_SCALE = 0.8;
   const MIN_SCALE = 0.5;
-  const MAX_SCALE = 4.5;
-  const SCALE_STEP = 0.5;
+  const MAX_SCALE = 5.0;
+  const SCALE_STEP = 1.0;
 
   // --- LANGUAGE DETECTION UTILITY ---
   function getInitialLanguage() {
@@ -337,9 +337,9 @@ export default function GeoGuesserDuel() {
     const { spanLon, spanLat } = feature.properties.bounds;
     const maxSpan = Math.max(spanLon, spanLat);
     
-    // Formula to calculate scale based on country size (Max scale is 4.5, Min scale is 0.5)
-    let targetScale = 3.5 - (Math.sqrt(maxSpan) * 0.25);
-    return Math.max(MIN_SCALE, Math.min(MAX_SCALE, targetScale)); 
+    // Formula to calculate scale based on country size
+    let targetScale = MAX_SCALE - 1 - (Math.sqrt(maxSpan) * 0.28);
+    return Math.max(MIN_SCALE, targetScale);
   }, []);
 
   // --- CAMERA CONTROL LOGIC ---
@@ -383,7 +383,7 @@ export default function GeoGuesserDuel() {
         targetScale: targetScale,
         startTime: 0,
         active: true,
-        duration: 2000 
+        duration: 1800 
     };
     requestAnimationFrame(animate);
 
