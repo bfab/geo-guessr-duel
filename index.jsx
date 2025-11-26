@@ -190,7 +190,7 @@ export default function GeoGuesserDuel() {
     // --- STYLING CONSTANTS ---
   const targetFill = '#3b82f6'; // Custom Brighter Gray/Blue
   const targetStroke = '#60a5fa'; // Custom Darker/More visible border
-  const nonTargetFill = '#334155';
+  const nonTargetFill = '#243042';
   const nonTargetStroke = '#475569';
   const nonTargetStrokeWidth = 1.0; // Increased stroke width
   
