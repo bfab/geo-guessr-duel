@@ -510,7 +510,8 @@ export default function GeoGuesserDuel() {
   };
 
   const getCapitalName = (feature) => {
-    return translationData[feature.id]?.capital?.[0] || "Unknown Capital";
+    if (!feature) return "Unknown Capital";
+    return translationData[feature?.id]?.capital?.[0] || "Unknown Capital";
   };
 
   const startGame = (mode) => {
@@ -644,7 +645,13 @@ export default function GeoGuesserDuel() {
   if (gameState === 'game_over') return <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans overflow-hidden"><header className="bg-slate-800 border-b border-slate-700 px-4 py-3 shadow-md z-20"><div className="max-w-7xl mx-auto flex justify-between items-center gap-4"><div className="flex items-center gap-2"><MapIcon className="text-blue-400" size={24} /><h1 className="text-xl font-bold tracking-wider">GEO<span className="text-blue-400">DUEL</span></h1></div></div></header><GameOverModal /></div>;
 
   // --- GAME RENDER ---
-  const revealedAnswer = gameState === 'country_guess' ? getCountryName(targetCountry) : getCapitalName(targetCountry);
+  const revealedAnswer = revealed
+    ? (targetCountry
+        ? (gameState === 'country_guess'
+            ? getCountryName(targetCountry)
+            : getCapitalName(targetCountry))
+        : getText('loading'))
+    : '';
   const overlayText = gameState === 'country_guess' ? getText('guess_country') : `${getText('guess_capital')} ${getCountryName(targetCountry)}?`;
   
   return (
